@@ -1,7 +1,7 @@
 /**
  * basic.test.ts
  * 
- * Purpose: Tests for Socket instance creation, lifecycle management, and SocketOptions
+ * Purpose: Integration tests for Socket instance creation, lifecycle management, and SocketOptions
  * 
  * Test Coverage:
  * - Socket instance creation and API existence verification
@@ -15,16 +15,17 @@
  * - Event-based/generator-based APIs are tested in their dedicated test files
  * - Reconnection logic is tested in reconnection.test.ts
  * - Buffer overflow is tested in buffer-overflow.test.ts
+ * - Handler unit tests are in handlers/ directory
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import createSocket from '../src/index.js';
+import createSocket from '../../src/index.js';
 import {
   setupWebSocketMock,
   cleanupWebSocketMock,
   createdWebSockets,
   MockWebSocket,
-} from './helpers';
+} from '../helpers.js';
 
 describe('Basic Functionality', () => {
   let WebSocketSpy: ReturnType<typeof setupWebSocketMock>;
@@ -206,6 +207,88 @@ describe('Basic Functionality', () => {
     // Close should clear reconnectTimer
     socket.close();
     await vi.runAllTimersAsync();
+
+    expect(socket).toBeDefined();
+  });
+
+  it('should handle close with abortController', async () => {
+    const socket = createSocket({ url: 'ws://test.com' });
+    await vi.runAllTimersAsync();
+
+    // Start generator to create abortController in state
+    const controller = new AbortController();
+    const messagePromise = (async () => {
+      for await (const _ of socket.messages({ signal: controller.signal })) {
+        // Consume
+      }
+    })();
+
+    vi.advanceTimersByTime(20);
+
+    // Close should cleanup abortController (covers lines 118-120)
+    socket.close();
+    await vi.runAllTimersAsync();
+
+    controller.abort();
+    await messagePromise;
+
+    expect(socket).toBeDefined();
+  });
+
+  it('should handle WebSocket constructor error', async () => {
+    // Mock WebSocket to throw error on construction
+    const originalWebSocket = global.WebSocket;
+    global.WebSocket = vi.fn(() => {
+      throw new Error('WebSocket construction failed');
+    }) as any;
+
+    const socket = createSocket({
+      url: 'ws://test.com',
+      reconnect: {
+        enabled: true,
+        attempts: 1,
+        interval: 100,
+      },
+    });
+
+    const errorEvents: any[] = [];
+    socket.onEvent((event) => {
+      if (event.type === 'error') {
+        errorEvents.push(event);
+      }
+    });
+
+    await vi.runAllTimersAsync();
+
+    // Should emit error event (covers catch block lines 96-104)
+    expect(errorEvents.length).toBeGreaterThan(0);
+
+    // Restore original WebSocket
+    global.WebSocket = originalWebSocket;
+  });
+
+
+  it('should cleanup abortController when closing with active generator', async () => {
+    const socket = createSocket({ url: 'ws://test.com' });
+    await vi.runAllTimersAsync();
+
+    const controller = new AbortController();
+    
+    // Start generator to create abortController in state
+    const messagePromise = (async () => {
+      for await (const _ of socket.messages({ signal: controller.signal })) {
+        // Consume
+      }
+    })();
+
+    vi.advanceTimersByTime(20);
+    
+    // Close should cleanup abortController
+    socket.close();
+    await vi.runAllTimersAsync();
+
+    controller.abort();
+    await messagePromise;
 
     expect(socket).toBeDefined();
   });

@@ -1,7 +1,7 @@
 /**
  * buffer-overflow.test.ts
  * 
- * Purpose: Tests for buffer overflow policies (oldest, newest, error)
+ * Purpose: Integration tests for buffer overflow policies (oldest, newest, error)
  * 
  * Test Coverage:
  * - Receive buffer overflow policy
@@ -11,16 +11,17 @@
  * 
  * Boundaries:
  * - Buffer size configuration is only tested here
- * - dropped event emission is verified here, but the event itself is also tested in event-based.test.ts
+ * - dropped event emission is verified here, but the event itself is also tested in api-callbacks.test.ts
+ * - Handler unit tests are in handlers/ directory
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import createSocket from '../src/index.js';
+import createSocket from '../../src/index.js';
 import {
   setupWebSocketMock,
   cleanupWebSocketMock,
   createdWebSockets,
-} from './helpers';
+} from '../helpers.js';
 
 describe('Buffer Overflow Policies', () => {
   beforeEach(() => {
@@ -281,29 +282,5 @@ describe('Buffer Overflow Policies', () => {
       }).toThrow('Send queue overflow');
     });
 
-    it('should flush queued messages when connection opens', async () => {
-      const socket = createSocket({
-        url: 'ws://test.com',
-        reconnect: false,
-      });
-
-      // Send messages before connection
-      socket.send('msg1');
-      socket.send('msg2');
-
-      const sentEvents: any[] = [];
-      socket.onEvent((event) => {
-        if (event.type === 'sent') {
-          sentEvents.push(event);
-        }
-      });
-
-      // Now connect
-      socket.connect();
-      await vi.runAllTimersAsync();
-
-      // Messages should be flushed and sent
-      expect(sentEvents.length).toBeGreaterThanOrEqual(0);
-    });
   });
 });

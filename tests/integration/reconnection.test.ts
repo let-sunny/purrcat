@@ -1,7 +1,7 @@
 /**
  * reconnection.test.ts
  * 
- * Purpose: Tests for automatic reconnection logic and backoff strategies
+ * Purpose: Integration tests for automatic reconnection logic and backoff strategies
  * 
  * Test Coverage:
  * - Automatic reconnection on unexpected connection closure
@@ -13,16 +13,17 @@
  * 
  * Boundaries:
  * - Basic connection/close is tested in basic.test.ts
- * - Reconnection-related events are verified here, but the event itself is also tested in event-based.test.ts
+ * - Reconnection-related events are verified here, but the event itself is also tested in api-callbacks.test.ts
+ * - Handler unit tests are in handlers/ directory
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import createSocket from '../src/index.js';
+import createSocket from '../../src/index.js';
 import {
   setupWebSocketMock,
   cleanupWebSocketMock,
   createdWebSockets,
-} from './helpers';
+} from '../helpers.js';
 
 describe('Reconnection', () => {
   beforeEach(() => {
