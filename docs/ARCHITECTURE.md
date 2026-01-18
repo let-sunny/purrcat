@@ -410,7 +410,10 @@ for await (const event of socket.events({ signal: abortController.signal })) {
 
 1. **메모리 사용**: 이터레이터가 활성화되면 버퍼링 필요
 2. **초기 지연**: 이터레이터 시작 전 메시지는 버퍼에 저장
-3. **단일 소비자**: 하나의 이터레이터가 메시지를 소비 (여러 이터레이터는 각각 독립적으로 동작)
+3. **메시지 소비 모델**: 제너레이터는 메시지를 **소비(consume)**합니다
+   - 여러 이터레이터가 동시에 활성화되면, 각 이터레이터는 **독립적으로** 메시지를 소비
+   - 같은 메시지를 여러 이터레이터가 받을 수 없음 (하나가 소비하면 다른 이터레이터는 받지 못함)
+   - **여러 페이지/컴포넌트에서 같은 메시지를 받아야 하는 경우에는 콜백을 사용해야 함**
 4. **학습 곡선**: async iterable에 대한 이해 필요
 
 #### 추천 사용 시나리오
@@ -453,10 +456,83 @@ for await (const msg of socket.messages()) {
 | 실시간 알림, 간단한 로깅 | 콜백 |
 | 순차 처리, 조건부 로직 | 제너레이터 |
 | 에러 복구, 재시도 로직 | 제너레이터 |
-| 다중 구독자 패턴 | 콜백 |
+| **다중 구독자 패턴** | **콜백** |
+| **여러 페이지/컴포넌트에서 같은 메시지 수신** | **콜백** |
 | 스트림 변환/필터링 | 제너레이터 |
 | 사용자 중단 가능한 작업 | 제너레이터 (AbortSignal) |
 | 메모리 제약이 큰 환경 | 콜백 (제너레이터 비활성화) |
+
+### 여러 페이지에서 같은 이벤트 수신하기
+
+여러 페이지나 컴포넌트에서 **같은 메시지/이벤트를 모두 받아야 하는 경우**에는 **콜백 기반 API를 사용**해야 합니다.
+
+#### ❌ 제너레이터는 부적합
+
+```typescript
+// 페이지 A
+for await (const msg of socket.messages()) {
+  // 메시지를 소비 - 버퍼에서 제거됨
+  console.log('Page A:', msg);
+}
+
+// 페이지 B
+for await (const msg of socket.messages()) {
+  // 페이지 A가 이미 소비한 메시지는 받을 수 없음
+  console.log('Page B:', msg); // 일부 메시지를 놓칠 수 있음
+}
+```
+
+제너레이터는 메시지를 **소비(consume)**하므로, 하나의 이터레이터가 메시지를 받으면 버퍼에서 제거되어 다른 이터레이터는 받을 수 없습니다.
+
+#### ✅ 콜백은 적합
+
+```typescript
+// 페이지 A
+socket.onMessage((msg) => {
+  console.log('Page A:', msg);
+  // 메시지를 소비하지 않음 - 다른 핸들러도 받을 수 있음
+});
+
+// 페이지 B
+socket.onMessage((msg) => {
+  console.log('Page B:', msg);
+  // 같은 메시지를 받을 수 있음
+});
+
+// 페이지 C
+socket.onMessage((msg) => {
+  console.log('Page C:', msg);
+  // 모든 핸들러가 같은 메시지를 받음
+});
+```
+
+콜백은 메시지를 **소비하지 않고** 모든 등록된 핸들러에 **브로드캐스트**하므로, 여러 구독자가 같은 메시지를 받을 수 있습니다.
+
+#### 실제 사용 예시
+
+```typescript
+// 전역 소켓 인스턴스
+const socket = createSocket({ url: 'wss://example.com' });
+
+// 컴포넌트 A: 알림 표시
+socket.onMessage((msg) => {
+  if (msg.type === 'notification') {
+    showNotification(msg);
+  }
+});
+
+// 컴포넌트 B: 로깅
+socket.onMessage((msg) => {
+  logger.log('Message received:', msg);
+});
+
+// 컴포넌트 C: 상태 업데이트
+socket.onMessage((msg) => {
+  updateState(msg);
+});
+
+// 모든 컴포넌트가 같은 메시지를 받음
+```
 
 ---
 
