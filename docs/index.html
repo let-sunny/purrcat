@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>purrcat - WebSocket Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    .demo-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .demo-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .panel h2 {
+      margin-bottom: 20px;
+      color: #667eea;
+      font-size: 1.5rem;
+    }
+
+    .connection-panel {
+      grid-column: 1 / -1;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .label-with-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .label-with-status label {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #555;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+      font-family: 'Monaco', 'Courier New', monospace;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-danger {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #c0392b;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+    }
+
+    .btn-secondary {
+      background: #95a5a6;
+      color: white;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #7f8c8d;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .status.connected {
+      background: #2ecc71;
+      color: white;
+    }
+
+    .status.disconnected {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .status.connecting {
+      background: #f39c12;
+      color: white;
+    }
+
+    .messages {
+      max-height: 400px;
+      overflow-y: auto;
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .message {
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: white;
+      border-left: 4px solid #667eea;
+    }
+
+    .message.sent {
+      border-left-color: #2ecc71;
+      background: #e8f5e9;
+    }
+
+    .message.received {
+      border-left-color: #3498db;
+      background: #e3f2fd;
+    }
+
+    .message.event {
+      border-left-color: #f39c12;
+      background: #fff3e0;
+      font-size: 12px;
+    }
+
+    .message-time {
+      color: #999;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .event-log {
+      max-height: 400px;
+      overflow-y: auto;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .event-item {
+      margin-bottom: 8px;
+      padding: 4px 0;
+    }
+
+    .event-item.open {
+      color: #4ec9b0;
+    }
+
+    .event-item.close {
+      color: #ce9178;
+    }
+
+    .event-item.error {
+      color: #f48771;
+    }
+
+    .event-item.reconnect {
+      color: #dcdcaa;
+    }
+
+    .event-item.received,
+    .event-item.sent {
+      color: #569cd6;
+    }
+
+    .clear-btn {
+      margin-top: 12px;
+    }
+
+    .info-box {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .info-box p {
+      margin-bottom: 8px;
+      color: #1976d2;
+    }
+
+    .info-box code {
+      background: rgba(33, 150, 243, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Courier New', monospace;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .settings-grid label {
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .settings-grid input,
+    .settings-grid select {
+      width: 100%;
+      padding: 8px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-item {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .template-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .template-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .template-btn:hover {
+      background: #e0e0e0;
+      border-color: #667eea;
+    }
+
+    .collapsible {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .collapsible-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    .collapsible-content.expanded {
+      max-height: 500px;
+    }
+
+    .collapse-icon {
+      display: inline-block;
+      margin-left: 8px;
+      transition: transform 0.3s;
+    }
+
+    .collapse-icon.expanded {
+      transform: rotate(180deg);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🐱 purrcat</h1>
+      <p>Lightweight WebSocket Client Demo</p>
+    </header>
+
+    <div class="panel connection-panel">
+      <h2>Connection</h2>
+      <div class="info-box">
+        <p><strong>Demo Server:</strong> <code>wss://echo.websocket.org</code> - Echoes back any message you send</p>
+        <p>You can also use any WebSocket server URL</p>
+      </div>
+      <div class="form-group">
+        <div class="label-with-status">
+          <label for="ws-url">WebSocket URL</label>
+          <div id="status" class="status disconnected">Disconnected</div>
+        </div>
+        <input type="text" id="ws-url" value="wss://echo.websocket.org" placeholder="wss://echo.websocket.org or wss://example.com/ws">
+      </div>
+      
+      <div class="collapsible" onclick="toggleSettings()">
+        <h3 style="margin: 16px 0 8px 0; font-size: 14px; color: #667eea;">
+          Reconnection Settings
+          <span class="collapse-icon" id="settings-icon">▼</span>
+        </h3>
+      </div>
+      <div class="collapsible-content" id="settings-content">
+        <div class="settings-grid">
+          <div>
+            <label for="reconnect-attempts">Max Attempts</label>
+            <input type="number" id="reconnect-attempts" value="5" min="0" max="100">
+          </div>
+          <div>
+            <label for="reconnect-interval">Interval (ms)</label>
+            <input type="number" id="reconnect-interval" value="1000" min="100" step="100">
+          </div>
+          <div>
+            <label for="reconnect-backoff">Backoff Type</label>
+            <select id="reconnect-backoff">
+              <option value="exponential">Exponential</option>
+              <option value="linear">Linear</option>
+            </select>
+          </div>
+          <div>
+            <label for="reconnect-max-interval">Max Interval (ms)</label>
+            <input type="number" id="reconnect-max-interval" value="10000" min="1000" step="1000">
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="stats-grid" style="display: none;">
+        <div class="stat-item">
+          <div class="stat-label">Messages Sent</div>
+          <div class="stat-value" id="stat-sent">0</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Messages Received</div>
+          <div class="stat-value" id="stat-received">0</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Connection Time</div>
+          <div class="stat-value" id="stat-time">0s</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Reconnects</div>
+          <div class="stat-value" id="stat-reconnects">0</div>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button id="connect-btn" class="btn-primary">Connect</button>
+        <button id="disconnect-btn" class="btn-danger" disabled>Disconnect</button>
+      </div>
+    </div>
+
+    <div class="demo-container">
+      <div class="panel">
+        <h2>Send Message</h2>
+        <div class="template-buttons">
+          <button class="template-btn" onclick="useTemplate('ping')">Ping</button>
+          <button class="template-btn" onclick="useTemplate('hello')">Hello</button>
+          <button class="template-btn" onclick="useTemplate('chat')">Chat Message</button>
+          <button class="template-btn" onclick="useTemplate('data')">Data Object</button>
+          <button class="template-btn" onclick="useTemplate('array')">Array</button>
+        </div>
+        <div class="form-group">
+          <label for="message-input">Message (JSON or plain text)</label>
+          <textarea id="message-input" placeholder='{"type": "hello", "message": "world"}'></textarea>
+        </div>
+        <div class="button-group">
+          <button id="send-btn" class="btn-primary" disabled>Send</button>
+          <button id="clear-messages-btn" class="btn-secondary">Clear Messages</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Messages</h2>
+        <div id="messages" class="messages">
+          <div class="message event">
+            <div class="message-time">Ready to connect</div>
+            <div>Connect to a WebSocket server to start sending and receiving messages</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Event Log</h2>
+      <p style="font-size: 12px; color: #666; margin-bottom: 12px;">
+        Shows all WebSocket events: connection, disconnection, errors, reconnection attempts, and message events
+      </p>
+      <div id="event-log" class="event-log">
+        <div class="event-item">Waiting for connection...</div>
+      </div>
+      <button id="clear-events-btn" class="btn-secondary clear-btn">Clear Events</button>
+    </div>
+  </div>
+
+  <!-- Load purrcat from local build (for development) or unpkg (for production) -->
+  <script>
+    // Load script and wait for it to be ready
+    (function() {
+      // Load from unpkg for GitHub Pages deployment
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/purrcat@latest/dist/index.global.js';
+      script.onload = function() {
+        // Wait a moment for global to be set
+        setTimeout(initApp, 100);
+      };
+      script.onerror = function() {
+        document.body.innerHTML = '<div style="padding: 20px; text-align: center; color: red;"><h2>Error: purrcat library not found</h2><p>Failed to load from unpkg CDN</p></div>';
+      };
+      document.head.appendChild(script);
+    })();
+
+    function initApp() {
+      if (typeof purrcat === 'undefined') {
+        console.error('purrcat not loaded. Make sure to run: npm run build');
+        document.body.innerHTML = '<div style="padding: 20px; text-align: center; color: red;"><h2>Error: purrcat library not found</h2><p>Please run: <code>npm run build</code></p></div>';
+        return;
+      }
+
+      // Initialize app
+      let socket = null;
+      let messageGenerator = null;
+      let abortController = null;
+      
+      // Statistics
+      let stats = {
+        sent: 0,
+        received: 0,
+        reconnects: 0,
+        connectTime: null,
+        timeInterval: null
+      };
+
+      const wsUrlInput = document.getElementById('ws-url');
+      const connectBtn = document.getElementById('connect-btn');
+      const disconnectBtn = document.getElementById('disconnect-btn');
+      const sendBtn = document.getElementById('send-btn');
+      const messageInput = document.getElementById('message-input');
+      const messagesDiv = document.getElementById('messages');
+      const eventLogDiv = document.getElementById('event-log');
+      const statusDiv = document.getElementById('status');
+      const clearMessagesBtn = document.getElementById('clear-messages-btn');
+      const clearEventsBtn = document.getElementById('clear-events-btn');
+      
+      // Stats elements
+      const statSent = document.getElementById('stat-sent');
+      const statReceived = document.getElementById('stat-received');
+      const statTime = document.getElementById('stat-time');
+      const statReconnects = document.getElementById('stat-reconnects');
+      const statsGrid = document.getElementById('stats-grid');
+
+    function updateStatus(status, text) {
+      statusDiv.className = `status ${status}`;
+      statusDiv.textContent = text;
+    }
+
+    function addMessage(type, content, timestamp = new Date()) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${type}`;
+      
+      const timeDiv = document.createElement('div');
+      timeDiv.className = 'message-time';
+      timeDiv.textContent = timestamp.toLocaleTimeString();
+      
+      const contentDiv = document.createElement('div');
+      if (typeof content === 'object') {
+        contentDiv.textContent = JSON.stringify(content, null, 2);
+      } else {
+        contentDiv.textContent = content;
+      }
+      
+      messageDiv.appendChild(timeDiv);
+      messageDiv.appendChild(contentDiv);
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      
+      // Update statistics
+      if (type === 'sent') {
+        stats.sent++;
+        statSent.textContent = stats.sent;
+      } else if (type === 'received') {
+        stats.received++;
+        statReceived.textContent = stats.received;
+      }
+    }
+    
+    function updateStats() {
+      if (stats.connectTime) {
+        const elapsed = Math.floor((Date.now() - stats.connectTime) / 1000);
+        statTime.textContent = elapsed + 's';
+      }
+    }
+    
+    function resetStats() {
+      stats.sent = 0;
+      stats.received = 0;
+      stats.reconnects = 0;
+      stats.connectTime = null;
+      if (stats.timeInterval) {
+        clearInterval(stats.timeInterval);
+        stats.timeInterval = null;
+      }
+      statSent.textContent = '0';
+      statReceived.textContent = '0';
+      statTime.textContent = '0s';
+      statReconnects.textContent = '0';
+    }
+
+    function addEvent(type, data) {
+      const eventDiv = document.createElement('div');
+      eventDiv.className = `event-item ${type}`;
+      
+      const timestamp = new Date().toLocaleTimeString();
+      let text = `[${timestamp}] ${type.toUpperCase()}`;
+      
+      if (data) {
+        if (typeof data === 'object') {
+          text += `: ${JSON.stringify(data)}`;
+        } else {
+          text += `: ${data}`;
+        }
+      }
+      
+      eventDiv.textContent = text;
+      eventLogDiv.appendChild(eventDiv);
+      eventLogDiv.scrollTop = eventLogDiv.scrollHeight;
+    }
+
+    function connect() {
+      const url = wsUrlInput.value.trim();
+      if (!url) {
+        alert('Please enter a WebSocket URL');
+        return;
+      }
+
+      updateStatus('connecting', 'Connecting...');
+      connectBtn.disabled = true;
+      disconnectBtn.disabled = false;
+      
+      // Reset and start stats
+      resetStats();
+      stats.connectTime = Date.now();
+      stats.timeInterval = setInterval(updateStats, 1000);
+      statsGrid.style.display = 'grid';
+
+      try {
+        const reconnectConfig = {
+          enabled: true,
+          attempts: parseInt(document.getElementById('reconnect-attempts').value) || 5,
+          interval: parseInt(document.getElementById('reconnect-interval').value) || 1000,
+          backoff: document.getElementById('reconnect-backoff').value || 'exponential',
+          maxInterval: parseInt(document.getElementById('reconnect-max-interval').value) || 10000,
+        };
+        
+        socket = purrcat.createSocket({
+          url: url,
+          reconnect: reconnectConfig,
+        });
+
+        // Listen to events
+        socket.onEvent((event) => {
+          addEvent(event.type, event.meta);
+          
+          if (event.type === 'open') {
+            updateStatus('connected', 'Connected');
+            sendBtn.disabled = false;
+            if (!stats.connectTime) {
+              stats.connectTime = Date.now();
+              stats.timeInterval = setInterval(updateStats, 1000);
+            }
+          } else if (event.type === 'close') {
+            updateStatus('disconnected', 'Disconnected');
+            sendBtn.disabled = true;
+            if (stats.timeInterval) {
+              clearInterval(stats.timeInterval);
+              stats.timeInterval = null;
+            }
+            const { code, reason, wasClean } = event.meta || {};
+            addMessage('event', `Connection closed (code: ${code}, reason: ${reason || 'none'}, clean: ${wasClean})`);
+          } else if (event.type === 'error') {
+            updateStatus('disconnected', 'Error');
+            addMessage('event', `Error: ${event.meta?.error || 'Unknown error'}`);
+          } else if (event.type === 'reconnect') {
+            const { attempt, interval } = event.meta || {};
+            stats.reconnects++;
+            statReconnects.textContent = stats.reconnects;
+            if (interval) {
+              addMessage('event', `Reconnecting in ${interval}ms (attempt ${attempt})`);
+            } else {
+              addMessage('event', `Reconnecting (attempt ${attempt})`);
+            }
+          }
+        });
+
+        // Listen to messages using generator
+        abortController = new AbortController();
+        messageGenerator = (async () => {
+          try {
+            for await (const message of socket.messages({ signal: abortController.signal })) {
+              addMessage('received', message);
+            }
+          } catch (error) {
+            if (error.name !== 'AbortError') {
+              console.error('Message generator error:', error);
+            }
+          }
+        })();
+
+        addEvent('connecting', { url });
+      } catch (error) {
+        console.error('Connection error:', error);
+        addEvent('error', error.message);
+        updateStatus('disconnected', 'Connection Failed');
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+      }
+    }
+
+    function disconnect() {
+      if (socket) {
+        socket.close();
+        socket = null;
+      }
+      
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+      }
+      
+      messageGenerator = null;
+      updateStatus('disconnected', 'Disconnected');
+      connectBtn.disabled = false;
+      disconnectBtn.disabled = true;
+      sendBtn.disabled = true;
+      
+      if (stats.timeInterval) {
+        clearInterval(stats.timeInterval);
+        stats.timeInterval = null;
+      }
+    }
+    
+    function useTemplate(type) {
+      const templates = {
+        ping: '{"type": "ping", "timestamp": ' + Date.now() + '}',
+        hello: '{"type": "hello", "message": "world", "from": "demo"}',
+        chat: '{"type": "chat", "user": "demo-user", "text": "Hello from purrcat demo!"}',
+        data: '{"type": "data", "payload": {"key": "value", "number": 42}}',
+        array: '[{"id": 1, "name": "item1"}, {"id": 2, "name": "item2"}]'
+      };
+      messageInput.value = templates[type] || '';
+      messageInput.focus();
+    }
+    
+    function toggleSettings() {
+      const content = document.getElementById('settings-content');
+      const icon = document.getElementById('settings-icon');
+      content.classList.toggle('expanded');
+      icon.classList.toggle('expanded');
+    }
+
+    function sendMessage() {
+      if (!socket) return;
+
+      const messageText = messageInput.value.trim();
+      if (!messageText) {
+        alert('Please enter a message');
+        return;
+      }
+
+      try {
+        let message;
+        // Try to parse as JSON, otherwise send as string
+        if (messageText.startsWith('{') || messageText.startsWith('[')) {
+          message = JSON.parse(messageText);
+        } else {
+          message = messageText;
+        }
+
+        socket.send(message);
+        addMessage('sent', message);
+        messageInput.value = '';
+      } catch (error) {
+        alert('Invalid JSON: ' + error.message);
+      }
+    }
+
+    connectBtn.addEventListener('click', connect);
+    disconnectBtn.addEventListener('click', disconnect);
+    sendBtn.addEventListener('click', sendMessage);
+    
+    // Make functions global for onclick handlers
+    window.useTemplate = useTemplate;
+    window.toggleSettings = toggleSettings;
+    
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        sendMessage();
+      }
+    });
+
+    clearMessagesBtn.addEventListener('click', () => {
+      messagesDiv.innerHTML = '';
+    });
+
+    clearEventsBtn.addEventListener('click', () => {
+      eventLogDiv.innerHTML = '';
+    });
+    }
+  </script>
+</body>
+</html>
