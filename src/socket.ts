@@ -76,16 +76,23 @@ export function createSocket<
       }
     });
 
-    // Always queue events (callbacks might want to see them, and new iterators might want recent events)
-    state.eventQueue.push(event);
-    
-    // Only notify resolvers if there are active iterators waiting
+    // Queue events for iterators
     if (state.activeEventIterators > 0) {
+      // Active iterators exist - add to queue and notify
+      state.eventQueue.push(event);
       // Notify waiting iterators immediately
       // Copy the set to avoid issues if new resolvers are added during iteration
       const resolvers = Array.from(state.eventResolvers);
       state.eventResolvers.clear();
       resolvers.forEach((resolve) => resolve());
+    } else {
+      // No active iterators - keep only recent events (max 10) for when iterators start
+      // This allows new iterators to receive recent events without memory leak
+      state.eventQueue.push(event);
+      const maxRecentEvents = 10;
+      if (state.eventQueue.length > maxRecentEvents) {
+        state.eventQueue.shift(); // Remove oldest event
+      }
     }
   }
 
