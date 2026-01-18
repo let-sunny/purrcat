@@ -2,7 +2,7 @@
 
 [![Build Status](https://github.com/let-sunny/purrcat/workflows/CI/badge.svg)](https://github.com/let-sunny/purrcat/actions)
 [![npm version](https://img.shields.io/npm/v/purrcat.svg)](https://www.npmjs.com/package/purrcat)
-[![gzip size](https://img.shields.io/bundlephobia/minzip/purrcat)](https://bundlephobia.com/package/purrcat)
+[![gzip size](https://img.shields.io/bundlephobia/minzip/purrcat?label=gzip)](https://bundlephobia.com/package/purrcat)
 
 > Lightweight WebSocket client with auto-reconnect, backoff strategies, bounded message buffering, and async iterables
 
