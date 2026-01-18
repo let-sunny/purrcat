@@ -1,7 +1,7 @@
 /**
- * event-based.test.ts
+ * api-callbacks.test.ts
  * 
- * Purpose: Tests for callback-based API (onMessage, onEvent) and event details
+ * Purpose: Integration tests for callback-based API (onMessage, onEvent) and event details
  * 
  * Test Coverage:
  * - onMessage() callback registration/unregistration and message reception
@@ -13,18 +13,19 @@
  * - Multiple callbacks registration and independent operation
  * 
  * Boundaries:
- * - Generator-based API is tested in generator-based.test.ts
+ * - Generator-based API is tested in api-generators.test.ts
  * - AbortSignal integration is tested in abort-signal.test.ts
  * - Buffer overflow events are tested in detail in buffer-overflow.test.ts
+ * - Handler unit tests are in handlers/ directory
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import createSocket from '../src/index.js';
+import createSocket from '../../src/index.js';
 import {
   setupWebSocketMock,
   cleanupWebSocketMock,
   createdWebSockets,
-} from './helpers';
+} from '../helpers.js';
 
 describe('Event-Based API (Callbacks)', () => {
   beforeEach(() => {

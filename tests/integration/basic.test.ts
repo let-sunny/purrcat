@@ -1,7 +1,7 @@
 /**
  * basic.test.ts
  * 
- * Purpose: Tests for Socket instance creation, lifecycle management, and SocketOptions
+ * Purpose: Integration tests for Socket instance creation, lifecycle management, and SocketOptions
  * 
  * Test Coverage:
  * - Socket instance creation and API existence verification
@@ -15,16 +15,17 @@
  * - Event-based/generator-based APIs are tested in their dedicated test files
  * - Reconnection logic is tested in reconnection.test.ts
  * - Buffer overflow is tested in buffer-overflow.test.ts
+ * - Handler unit tests are in handlers/ directory
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import createSocket from '../src/index.js';
+import createSocket from '../../src/index.js';
 import {
   setupWebSocketMock,
   cleanupWebSocketMock,
   createdWebSockets,
   MockWebSocket,
-} from './helpers';
+} from '../helpers.js';
 
 describe('Basic Functionality', () => {
   let WebSocketSpy: ReturnType<typeof setupWebSocketMock>;

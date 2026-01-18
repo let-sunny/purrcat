@@ -1,7 +1,7 @@
 /**
- * generator-based.test.ts
+ * api-generators.test.ts
  * 
- * Purpose: Tests for generator-based API (messages(), events(), sendMessages()) basic behavior
+ * Purpose: Integration tests for generator-based API (messages(), events(), sendMessages()) basic behavior
  * 
  * Test Coverage:
  * - Message reception via messages() generator
@@ -13,16 +13,17 @@
  * Boundaries:
  * - AbortSignal integration is tested in detail in abort-signal.test.ts
  * - Buffer overflow is tested in buffer-overflow.test.ts
- * - Callback-based API is tested in event-based.test.ts
+ * - Callback-based API is tested in api-callbacks.test.ts
+ * - Handler unit tests are in handlers/ directory
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import createSocket from '../src/index.js';
+import createSocket from '../../src/index.js';
 import {
   setupWebSocketMock,
   cleanupWebSocketMock,
   createdWebSockets,
-} from './helpers';
+} from '../helpers.js';
 
 describe('Generator-Based API (Async Iterables)', () => {
   beforeEach(() => {

@@ -11,17 +11,18 @@
  * - Edge cases (undefined signal, cannot reuse, etc.)
  * 
  * Boundaries:
- * - Basic generator behavior is tested in generator-based.test.ts
+ * - Basic generator behavior is tested in api-generators.test.ts
  * - General cases without AbortSignal are tested in other files
+ * - Handler unit tests are in handlers/ directory
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import createSocket from '../src/index.js';
+import createSocket from '../../src/index.js';
 import {
   setupWebSocketMock,
   cleanupWebSocketMock,
   createdWebSockets,
-} from './helpers';
+} from '../helpers.js';
 
 describe('AbortSignal Integration', () => {
   beforeEach(() => {

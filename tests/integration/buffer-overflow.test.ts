@@ -1,7 +1,7 @@
 /**
  * buffer-overflow.test.ts
  * 
- * Purpose: Tests for buffer overflow policies (oldest, newest, error)
+ * Purpose: Integration tests for buffer overflow policies (oldest, newest, error)
  * 
  * Test Coverage:
  * - Receive buffer overflow policy
@@ -11,16 +11,17 @@
  * 
  * Boundaries:
  * - Buffer size configuration is only tested here
- * - dropped event emission is verified here, but the event itself is also tested in event-based.test.ts
+ * - dropped event emission is verified here, but the event itself is also tested in api-callbacks.test.ts
+ * - Handler unit tests are in handlers/ directory
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import createSocket from '../src/index.js';
+import createSocket from '../../src/index.js';
 import {
   setupWebSocketMock,
   cleanupWebSocketMock,
   createdWebSockets,
-} from './helpers';
+} from '../helpers.js';
 
 describe('Buffer Overflow Policies', () => {
   beforeEach(() => {
