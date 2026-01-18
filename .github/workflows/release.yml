@@ -67,7 +67,4 @@ jobs:
 
       - name: Publish to npm
         run: npm publish --access public --provenance
-        # Uses Trusted Publishing (OIDC) if configured in npm
-        # Falls back to NPM_TOKEN secret if Trusted Publishing not configured
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Uses Trusted Publishing (OIDC) - no token needed if configured in npm
