@@ -1,8 +1,12 @@
 # purrcat
 
-[![Build Status](https://github.com/let-sunny/purrcat/workflows/CI/badge.svg)](https://github.com/let-sunny/purrcat/actions)
-[![npm version](https://img.shields.io/npm/v/purrcat.svg)](https://www.npmjs.com/package/purrcat)
-[![gzip size](https://img.shields.io/bundlephobia/minzip/purrcat?label=gzip)](https://bundlephobia.com/package/purrcat)
+<p align="center">
+  <img src="./logo.png" width="100" height="100" alt="purrcat" style="border-radius: 22px;">
+  <br>
+  <a href="https://www.npmjs.org/package/purrcat"><img src="https://img.shields.io/npm/v/purrcat.svg" alt="npm"></a>
+  <img src="https://github.com/let-sunny/purrcat/workflows/CI/badge.svg" alt="build status">
+  <a href="https://unpkg.com/purrcat/dist/index.iife.js"><img src="https://img.badgesize.io/https://unpkg.com/purrcat/dist/index.iife.js?compression=gzip" alt="gzip size"></a>
+</p>
 
 > Lightweight WebSocket client with auto-reconnect, backoff strategies, bounded message buffering, and async iterables
 
@@ -32,6 +36,25 @@ A lightweight, event-driven WebSocket client library. Perfect for real-time appl
 - **Zero dependencies** (uses native WebSocket API)
 - **Tiny bundle size**
 - **AbortSignal** support for stream cancellation
+
+## Table of Contents
+
+- [Installation](#installation)
+  - [Requirements](#requirements)
+- [Usage](#usage)
+  - [Browser (UMD)](#browser-umd)
+  - [Type-Safe Messages (Generic Types)](#type-safe-messages-generic-types)
+  - [Generator-based Streams](#generator-based-streams)
+  - [With AbortSignal](#with-abortsignal)
+  - [Callback-based API](#callback-based-api)
+  - [Reconnection Options](#reconnection-options)
+  - [Bounded Buffer with Overflow Policy](#bounded-buffer-with-overflow-policy)
+  - [Manual Connection Control](#manual-connection-control)
+- [API](#api)
+  - [createSocket(options)](#createsocketoptions)
+  - [Socket Methods](#socket-methods)
+  - [SocketEvent Types](#socketevent-types)
+- [Examples](#examples)
 
 ## Installation
 
