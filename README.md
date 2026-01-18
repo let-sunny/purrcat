@@ -1,24 +1,71 @@
 # purrcat
 
+<p align="center">
+  <img src="./logo.png" width="100" height="100" alt="purrcat" style="border-radius: 22px;">
+  <br>
+  <a href="https://www.npmjs.org/package/purrcat"><img src="https://img.shields.io/npm/v/purrcat.svg" alt="npm"></a>
+  <img src="https://github.com/let-sunny/purrcat/workflows/CI/badge.svg" alt="build status">
+  <a href="https://unpkg.com/purrcat/dist/index.iife.js"><img src="https://img.badgesize.io/https://unpkg.com/purrcat/dist/index.iife.js?compression=gzip" alt="gzip size"></a>
+</p>
+
 > Lightweight WebSocket client with auto-reconnect, backoff strategies, bounded message buffering, and async iterables
 
 A lightweight, event-driven WebSocket client library. Perfect for real-time applications that need reliable connections with automatic reconnection and message buffering.
 
+## Highlights
+
+**Microscopic**: weighs less than 6KB minified (~2KB gzipped)
+
+**Reliable**: automatic reconnection with exponential/linear backoff + jitter
+
+**Modern**: async iterables for generator-based message streams
+
+**Type-Safe**: full TypeScript support with generic message types
+
+**Zero Dependencies**: uses native WebSocket API only
+
+**Flexible**: callback-based or generator-based APIs, your choice
+
 ## Features
 
-- 🔌 **Automatic reconnection** with exponential/linear backoff + jitter
-- 📦 **Bounded message buffer** with configurable overflow policies
-- 🎯 **Generator-based streams** for async iteration
-- 📝 **TypeScript** support
-- 🌐 **Browser & Node.js** compatible (Node.js 18+ required for native WebSocket)
-- 🪶 **Zero dependencies** (uses native WebSocket API)
-- ⚡ **Tiny bundle size**
-- 🛑 **AbortSignal** support for stream cancellation
+- **Automatic reconnection** with exponential/linear backoff + jitter
+- **Bounded message buffer** with configurable overflow policies
+- **Generator-based streams** for async iteration
+- **TypeScript** support
+- **Browser & Node.js** compatible (Node.js 18+ required for native WebSocket)
+- **Zero dependencies** (uses native WebSocket API)
+- **Tiny bundle size**
+- **AbortSignal** support for stream cancellation
+
+## Table of Contents
+
+- [Installation](#installation)
+  - [Requirements](#requirements)
+- [Usage](#usage)
+  - [Browser (UMD)](#browser-umd)
+  - [Type-Safe Messages (Generic Types)](#type-safe-messages-generic-types)
+  - [Generator-based Streams](#generator-based-streams)
+  - [With AbortSignal](#with-abortsignal)
+  - [Callback-based API](#callback-based-api)
+  - [Reconnection Options](#reconnection-options)
+  - [Bounded Buffer with Overflow Policy](#bounded-buffer-with-overflow-policy)
+  - [Manual Connection Control](#manual-connection-control)
+- [API](#api)
+  - [createSocket(options)](#createsocketoptions)
+  - [Socket Methods](#socket-methods)
+  - [SocketEvent Types](#socketevent-types)
+- [Examples](#examples)
 
 ## Installation
 
+**npm:**
 ```bash
 npm install purrcat
+```
+
+**UMD build (via unpkg):**
+```html
+<script src="https://unpkg.com/purrcat/dist/index.iife.js"></script>
 ```
 
 ### Requirements
@@ -31,6 +78,32 @@ npm install purrcat
 - **Node.js**: 24.13.0 (tested with this version)
 
 ## Usage
+
+### Browser (UMD)
+
+When using the UMD build via `<script>` tag, the library is available as a global `purrcat`:
+
+```html
+<script src="https://unpkg.com/purrcat/dist/index.iife.js"></script>
+<script>
+  const socket = purrcat.createSocket({
+    url: 'wss://echo.websocket.org',
+  });
+
+  // Listen for messages
+  socket.onMessage((message) => {
+    console.log('Received:', message);
+  });
+
+  // Listen for events
+  socket.onEvent((event) => {
+    console.log('Event:', event.type);
+  });
+
+  // Send messages
+  socket.send({ type: 'hello', message: 'world' });
+</script>
+```
 
 ### Type-Safe Messages (Generic Types)
 
