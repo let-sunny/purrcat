@@ -189,4 +189,5 @@ describe('Generator-Based API (Async Iterables)', () => {
     // Callbacks should work (messages were not buffered)
     expect(socket).toBeDefined();
   });
+
 });

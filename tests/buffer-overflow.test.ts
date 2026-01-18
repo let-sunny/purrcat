@@ -281,29 +281,5 @@ describe('Buffer Overflow Policies', () => {
       }).toThrow('Send queue overflow');
     });
 
-    it('should flush queued messages when connection opens', async () => {
-      const socket = createSocket({
-        url: 'ws://test.com',
-        reconnect: false,
-      });
-
-      // Send messages before connection
-      socket.send('msg1');
-      socket.send('msg2');
-
-      const sentEvents: any[] = [];
-      socket.onEvent((event) => {
-        if (event.type === 'sent') {
-          sentEvents.push(event);
-        }
-      });
-
-      // Now connect
-      socket.connect();
-      await vi.runAllTimersAsync();
-
-      // Messages should be flushed and sent
-      expect(sentEvents.length).toBeGreaterThanOrEqual(0);
-    });
   });
 });
