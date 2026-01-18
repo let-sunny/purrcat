@@ -56,6 +56,32 @@ npm install purrcat
 
 ## Usage
 
+### Browser (UMD)
+
+When using the UMD build via `<script>` tag, the library is available as a global `purrcat`:
+
+```html
+<script src="https://unpkg.com/purrcat/dist/index.iife.js"></script>
+<script>
+  const socket = purrcat.createSocket({
+    url: 'wss://echo.websocket.org',
+  });
+
+  // Listen for messages
+  socket.onMessage((message) => {
+    console.log('Received:', message);
+  });
+
+  // Listen for events
+  socket.onEvent((event) => {
+    console.log('Event:', event.type);
+  });
+
+  // Send messages
+  socket.send({ type: 'hello', message: 'world' });
+</script>
+```
+
 ### Type-Safe Messages (Generic Types)
 
 You can define your own message types for type safety:
