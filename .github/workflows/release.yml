@@ -48,7 +48,9 @@ jobs:
           npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install --include=dev
+          npm list tsup || echo "tsup not found"
 
       - name: Run tests
         run: npm test
