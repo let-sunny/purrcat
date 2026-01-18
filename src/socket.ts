@@ -54,6 +54,8 @@ function createState<Incoming = string>(): InternalSocketState<Incoming> {
     abortController: null,
     activeMessageIterators: 0,
     activeEventIterators: 0,
+    messageResolvers: new Set(),
+    eventResolvers: new Set(),
   };
 }
 
@@ -65,10 +67,7 @@ export function createSocket<
   const state = createState<Incoming>();
 
   function emitEvent(event: SocketEvent): void {
-    // Add to event queue for async iteration
-    state.eventQueue.push(event);
-
-    // Call all registered callbacks
+    // Call all registered callbacks first (they don't use queue)
     state.eventCallbacks.forEach((cb) => {
       try {
         cb(event);
@@ -76,6 +75,18 @@ export function createSocket<
         console.error('Error in event callback:', error);
       }
     });
+
+    // Always queue events (callbacks might want to see them, and new iterators might want recent events)
+    state.eventQueue.push(event);
+    
+    // Only notify resolvers if there are active iterators waiting
+    if (state.activeEventIterators > 0) {
+      // Notify waiting iterators immediately
+      // Copy the set to avoid issues if new resolvers are added during iteration
+      const resolvers = Array.from(state.eventResolvers);
+      state.eventResolvers.clear();
+      resolvers.forEach((resolve) => resolve());
+    }
   }
 
   function emitMessage(data: string): void {
@@ -145,6 +156,11 @@ export function createSocket<
         }
       }
       state.messageBuffer.push(data);
+      // Notify waiting iterators immediately
+      // Copy the set to avoid issues if new resolvers are added during iteration
+      const resolvers = Array.from(state.messageResolvers);
+      state.messageResolvers.clear();
+      resolvers.forEach((resolve) => resolve());
     }
   }
 
@@ -350,7 +366,7 @@ export function createSocket<
       }
     } catch (error) {
       if (signal?.aborted) {
-        // AbortSignal로 인한 중단은 정상 종료
+        // AbortSignal cancellation is considered normal termination
         return;
       }
       throw error;

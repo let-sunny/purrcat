@@ -4,53 +4,37 @@ export async function* messagesGenerator<Incoming = string>(
   state: InternalSocketState<Incoming>,
   signal?: AbortSignal
 ): AsyncGenerator<Incoming> {
-  // Track that we have an active iterator
   state.activeMessageIterators++;
 
   try {
     while (true) {
-      if (signal?.aborted) {
-        break;
-      }
+      if (signal?.aborted) break;
 
-      // Yield buffered messages (consume from front)
+      // Yield buffered messages
       while (state.messageBuffer.length > 0) {
-        if (signal?.aborted) {
-          break;
-        }
-        // Remove and parse the oldest message
+        if (signal?.aborted) break;
+
         const messageStr = state.messageBuffer.shift()!;
-        // Parse JSON if possible, otherwise use string as-is
         let parsed: Incoming;
         try {
           parsed = JSON.parse(messageStr) as Incoming;
         } catch {
-          // If not JSON, use string as-is (for Incoming = string case)
           parsed = messageStr as unknown as Incoming;
         }
         yield parsed;
       }
 
       // Wait for new messages
-      await new Promise<void>((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (signal?.aborted) {
-            clearInterval(checkInterval);
-            resolve();
-            return;
-          }
-
-          if (state.messageBuffer.length > 0) {
-            clearInterval(checkInterval);
-            resolve();
-          }
-        }, 10);
-      });
+      await waitForItems(
+        signal,
+        () => state.messageBuffer.length > 0,
+        state.messageResolvers,
+        (resolve) => state.messageResolvers.add(resolve),
+        (resolve) => state.messageResolvers.delete(resolve)
+      );
     }
   } finally {
-    // Decrement active iterator count
     state.activeMessageIterators--;
-    // If no more iterators, clear the buffer to prevent memory leak
     if (state.activeMessageIterators === 0) {
       state.messageBuffer = [];
     }
@@ -61,46 +45,103 @@ export async function* eventsGenerator<Incoming = string>(
   state: InternalSocketState<Incoming>,
   signal?: AbortSignal
 ): AsyncGenerator<SocketEvent> {
-  // Track that we have an active iterator
   state.activeEventIterators++;
 
   try {
     while (true) {
-      if (signal?.aborted) {
-        break;
-      }
+      if (signal?.aborted) break;
 
-      // Yield queued events (consume from front)
+      // Yield queued events
       while (state.eventQueue.length > 0) {
-        if (signal?.aborted) {
-          break;
-        }
-        // Remove and yield the oldest event
-        const event = state.eventQueue.shift()!;
-        yield event;
+        if (signal?.aborted) break;
+        yield state.eventQueue.shift()!;
       }
 
       // Wait for new events
-      await new Promise<void>((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (signal?.aborted) {
-            clearInterval(checkInterval);
-            resolve();
-            return;
-          }
-
-          if (state.eventQueue.length > 0) {
-            clearInterval(checkInterval);
-            resolve();
-          }
-        }, 10);
-      });
+      await waitForItems(
+        signal,
+        () => state.eventQueue.length > 0,
+        state.eventResolvers,
+        (resolve) => state.eventResolvers.add(resolve),
+        (resolve) => state.eventResolvers.delete(resolve)
+      );
     }
   } finally {
-    // Decrement active iterator count
     state.activeEventIterators--;
-    // Note: We don't clear eventQueue when no iterators because
-    // events might be consumed by callbacks, and new iterators might
-    // want to see recent events. But we could add a max size if needed.
+    // Clear event queue when no iterators to prevent memory leak
+    if (state.activeEventIterators === 0) {
+      state.eventQueue = [];
+    }
   }
+}
+
+
+/**
+ * Wait for new items using event-based notification with polling fallback
+ */
+function waitForItems<T>(
+  signal: AbortSignal | undefined,
+  hasItems: () => boolean,
+  resolvers: Set<() => void>,
+  addResolver: (resolve: () => void) => void,
+  removeResolver: (resolve: () => void) => void
+): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let checkInterval: ReturnType<typeof setTimeout> | null = null;
+    let resolved = false;
+
+    const cleanup = () => {
+      if (resolved) return;
+      if (signal) {
+        signal.removeEventListener('abort', abortHandler);
+      }
+      removeResolver(doResolve);
+      if (checkInterval !== null) {
+        clearTimeout(checkInterval);
+        checkInterval = null;
+      }
+    };
+
+    const doResolve = () => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      resolve();
+    };
+
+    const abortHandler = () => doResolve();
+
+    // Check if already aborted
+    if (signal?.aborted) {
+      doResolve();
+      return;
+    }
+
+    // Listen for abort event
+    if (signal) {
+      signal.addEventListener('abort', abortHandler);
+    }
+
+    // Check if items already available
+    if (hasItems()) {
+      doResolve();
+      return;
+    }
+
+    // Register resolver for immediate notification
+    addResolver(doResolve);
+
+    // Fallback polling only if no AbortSignal
+    if (!signal) {
+      const poll = () => {
+        if (resolved) return;
+        if (hasItems()) {
+          doResolve();
+          return;
+        }
+        checkInterval = setTimeout(poll, 100) as any;
+      };
+      poll();
+    }
+  });
 }

@@ -77,6 +77,8 @@ export interface InternalSocketState<Incoming = string> {
   abortController: AbortController | null;
   activeMessageIterators: number;
   activeEventIterators: number;
+  messageResolvers: Set<() => void>;
+  eventResolvers: Set<() => void>;
 }
 
 /** Normalized options returned by normalizeOptions(), all fields are required with defaults applied */
