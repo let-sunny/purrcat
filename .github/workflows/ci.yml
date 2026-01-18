@@ -68,6 +68,6 @@ jobs:
 
       - name: Check build artifacts
         run: |
+          test -f dist/index.cjs || exit 1
           test -f dist/index.js || exit 1
-          test -f dist/index.mjs || exit 1
           test -f dist/index.d.ts || exit 1
