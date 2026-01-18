@@ -1,0 +1,35 @@
+# Source files
+src/
+tests/
+*.test.ts
+*.spec.ts
+
+# Config files
+tsconfig.json
+vitest.config.ts
+.github/
+CODE_DOCS/
+
+# Development files
+.editorconfig
+.eslintrc*
+.prettierrc*
+*.log
+.DS_Store
+
+# Build artifacts (will be included via package.json "files" field)
+# dist/ is included in package.json "files"
+
+# Coverage
+coverage/
+.nyc_output/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
