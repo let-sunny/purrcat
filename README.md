@@ -35,8 +35,14 @@ A lightweight, event-driven WebSocket client library. Perfect for real-time appl
 
 ## Installation
 
+**npm:**
 ```bash
 npm install purrcat
+```
+
+**UMD build (via unpkg):**
+```html
+<script src="https://unpkg.com/purrcat/dist/index.iife.js"></script>
 ```
 
 ### Requirements
