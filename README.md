@@ -32,6 +32,12 @@ A lightweight, event-driven WebSocket client library. Perfect for real-time appl
 
 Try purrcat in your browser with our interactive demo. Test WebSocket connections, send messages, and see reconnection in action.
 
+## 📚 Documentation
+
+**[Architecture Documentation →](./docs/ARCHITECTURE.md)**
+
+Learn about purrcat's internal architecture, design decisions, and how to choose between callback and generator APIs.
+
 ## Features
 
 - **Automatic reconnection** with exponential/linear backoff + jitter
@@ -46,6 +52,7 @@ Try purrcat in your browser with our interactive demo. Test WebSocket connection
 ## Table of Contents
 
 - [Try It Live](#-try-it-live)
+- [Documentation](#-documentation)
 - [Installation](#installation)
   - [Requirements](#requirements)
 - [Usage](#usage)
