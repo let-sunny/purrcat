@@ -1,5 +1,16 @@
 import type { SocketEvent, InternalSocketState } from './types.js';
+import { waitForItems, parseMessage } from './utils.js';
 
+/**
+ * Async generator for consuming messages from the socket
+ * 
+ * Yields messages from the message buffer as they arrive. Automatically manages
+ * buffer lifecycle - clears buffer when no active iterators remain.
+ * 
+ * @param state - Internal socket state containing message buffer and resolvers
+ * @param signal - Optional AbortSignal to cancel message consumption
+ * @yields Parsed incoming messages (JSON parsed if possible, otherwise string)
+ */
 export async function* messagesGenerator<Incoming = string>(
   state: InternalSocketState<Incoming>,
   signal?: AbortSignal
@@ -15,12 +26,7 @@ export async function* messagesGenerator<Incoming = string>(
         if (signal?.aborted) break;
 
         const messageStr = state.messageBuffer.shift()!;
-        let parsed: Incoming;
-        try {
-          parsed = JSON.parse(messageStr) as Incoming;
-        } catch {
-          parsed = messageStr as unknown as Incoming;
-        }
+        const parsed = parseMessage<Incoming>(messageStr);
         yield parsed;
       }
 
@@ -41,6 +47,16 @@ export async function* messagesGenerator<Incoming = string>(
   }
 }
 
+/**
+ * Async generator for consuming events from the socket
+ * 
+ * Yields events from the event queue as they occur. Automatically manages
+ * queue lifecycle - clears queue when no active iterators remain.
+ * 
+ * @param state - Internal socket state containing event queue and resolvers
+ * @param signal - Optional AbortSignal to cancel event consumption
+ * @yields SocketEvent objects representing connection events, messages, and errors
+ */
 export async function* eventsGenerator<Incoming = string>(
   state: InternalSocketState<Incoming>,
   signal?: AbortSignal
@@ -73,75 +89,4 @@ export async function* eventsGenerator<Incoming = string>(
       state.eventQueue = [];
     }
   }
-}
-
-
-/**
- * Wait for new items using event-based notification with polling fallback
- */
-function waitForItems<T>(
-  signal: AbortSignal | undefined,
-  hasItems: () => boolean,
-  resolvers: Set<() => void>,
-  addResolver: (resolve: () => void) => void,
-  removeResolver: (resolve: () => void) => void
-): Promise<void> {
-  return new Promise<void>((resolve) => {
-    let checkInterval: ReturnType<typeof setTimeout> | null = null;
-    let resolved = false;
-
-    const cleanup = () => {
-      if (resolved) return;
-      if (signal) {
-        signal.removeEventListener('abort', abortHandler);
-      }
-      removeResolver(doResolve);
-      if (checkInterval !== null) {
-        clearTimeout(checkInterval);
-        checkInterval = null;
-      }
-    };
-
-    const doResolve = () => {
-      if (resolved) return;
-      resolved = true;
-      cleanup();
-      resolve();
-    };
-
-    const abortHandler = () => doResolve();
-
-    // Check if already aborted
-    if (signal?.aborted) {
-      doResolve();
-      return;
-    }
-
-    // Listen for abort event
-    if (signal) {
-      signal.addEventListener('abort', abortHandler);
-    }
-
-    // Check if items already available
-    if (hasItems()) {
-      doResolve();
-      return;
-    }
-
-    // Register resolver for immediate notification
-    addResolver(doResolve);
-
-    // Fallback polling only if no AbortSignal
-    if (!signal) {
-      const poll = () => {
-        if (resolved) return;
-        if (hasItems()) {
-          doResolve();
-          return;
-        }
-        checkInterval = setTimeout(poll, 100) as any;
-      };
-      poll();
-    }
-  });
 }

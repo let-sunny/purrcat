@@ -4,61 +4,47 @@ import type {
   SocketEvent,
   InternalSocketState,
   NormalizedSocketOptions,
-  ReconnectConfig,
 } from './types.js';
-import { createEvent, calculateReconnectInterval } from './utils.js';
+import {
+  createEvent,
+  calculateReconnectInterval,
+  normalizeOptions,
+  createState,
+  parseMessage,
+  serializeMessage,
+  handleBufferOverflow,
+  createDroppedEvent,
+} from './utils.js';
 import { messagesGenerator, eventsGenerator } from './generators.js';
+import { MAX_RECENT_EVENTS } from './constants.js';
 
-function normalizeOptions(options: SocketOptions): NormalizedSocketOptions {
-  // Handle reconnect config: boolean or ReconnectConfig
-  const reconnectOption = options.reconnect;
-  const reconnectConfig: ReconnectConfig =
-    typeof reconnectOption === 'boolean'
-      ? { enabled: reconnectOption }
-      : reconnectOption ?? { enabled: true };
-
-  return {
-    reconnect: {
-      enabled: reconnectConfig.enabled ?? true,
-      attempts: reconnectConfig.attempts ?? Infinity,
-      interval: reconnectConfig.interval ?? 1000,
-      backoff: reconnectConfig.backoff ?? 'exponential',
-      maxInterval: reconnectConfig.maxInterval ?? 30000,
-    },
-    buffer: {
-      receive: {
-        size: options.buffer?.receive?.size ?? 100,
-        overflow: options.buffer?.receive?.overflow ?? 'oldest',
-      },
-      send: {
-        size: options.buffer?.send?.size ?? 100,
-        overflow: options.buffer?.send?.overflow ?? 'oldest',
-      },
-    },
-    url: options.url,
-    protocols: options.protocols,
-  };
-}
-
-function createState<Incoming = string>(): InternalSocketState<Incoming> {
-  return {
-    ws: null,
-    isManualClose: false,
-    reconnectCount: 0,
-    reconnectTimer: null,
-    messageBuffer: [],
-    eventQueue: [],
-    messageQueue: [],
-    messageCallbacks: new Set(),
-    eventCallbacks: new Set(),
-    abortController: null,
-    activeMessageIterators: 0,
-    activeEventIterators: 0,
-    messageResolvers: new Set(),
-    eventResolvers: new Set(),
-  };
-}
-
+/**
+ * Create a WebSocket client with auto-reconnect, buffering, and async iterables
+ * 
+ * Creates a new WebSocket client instance with the provided options. The socket
+ * automatically connects on creation and provides both callback-based and
+ * generator-based APIs for consuming messages and events.
+ * 
+ * @param options - Socket configuration options
+ * @param options.url - WebSocket server URL (required)
+ * @param options.protocols - Optional WebSocket subprotocol(s)
+ * @param options.reconnect - Reconnection configuration (boolean or ReconnectConfig)
+ * @param options.buffer - Buffer configuration for receive and send queues
+ * @returns Socket instance with methods for sending/receiving messages and events
+ * 
+ * @example
+ * ```typescript
+ * const socket = createSocket({ url: 'wss://example.com' });
+ * 
+ * // Generator-based API
+ * for await (const msg of socket.messages()) {
+ *   console.log(msg);
+ * }
+ * 
+ * // Callback-based API
+ * socket.onMessage((msg) => console.log(msg));
+ * ```
+ */
 export function createSocket<
   Incoming = string,
   Outgoing = string | object | ArrayBuffer | Blob
@@ -66,9 +52,24 @@ export function createSocket<
   const opts = normalizeOptions(options);
   const state = createState<Incoming>();
 
-  function emitEvent(event: SocketEvent): void {
+  const socket = new SocketImpl<Incoming, Outgoing>(state, opts);
+
+  // Auto-connect by default
+  socket.connect();
+
+  return socket;
+}
+
+
+/**
+ * Handles event emission and queue management
+ */
+class EventHandler<Incoming> {
+  constructor(private state: InternalSocketState<Incoming>) {}
+
+  emit(event: SocketEvent): void {
     // Call all registered callbacks first (they don't use queue)
-    state.eventCallbacks.forEach((cb) => {
+    this.state.eventCallbacks.forEach((cb) => {
       try {
         cb(event);
       } catch (error) {
@@ -77,289 +78,54 @@ export function createSocket<
     });
 
     // Queue events for iterators
-    if (state.activeEventIterators > 0) {
+    if (this.state.activeEventIterators > 0) {
       // Active iterators exist - add to queue and notify
-      state.eventQueue.push(event);
+      this.state.eventQueue.push(event);
       // Notify waiting iterators immediately
       // Copy the set to avoid issues if new resolvers are added during iteration
-      const resolvers = Array.from(state.eventResolvers);
-      state.eventResolvers.clear();
+      const resolvers = Array.from(this.state.eventResolvers);
+      this.state.eventResolvers.clear();
       resolvers.forEach((resolve) => resolve());
-    } else {
-      // No active iterators - keep only recent events (max 10) for when iterators start
-      // This allows new iterators to receive recent events without memory leak
-      state.eventQueue.push(event);
-      const maxRecentEvents = 10;
-      if (state.eventQueue.length > maxRecentEvents) {
-        state.eventQueue.shift(); // Remove oldest event
-      }
+      return;
+    }
+
+    // No active iterators - keep only recent events for when iterators start
+    // This allows new iterators to receive recent events without memory leak
+    this.state.eventQueue.push(event);
+    if (this.state.eventQueue.length > MAX_RECENT_EVENTS) {
+      this.state.eventQueue.shift(); // Remove oldest event
     }
   }
+}
 
-  function emitMessage(data: string): void {
+/**
+ * Handles message receiving, sending, and buffering
+ */
+class MessageHandler<Incoming, Outgoing> {
+  constructor(
+    private state: InternalSocketState<Incoming>,
+    private opts: NormalizedSocketOptions,
+    private eventHandler: EventHandler<Incoming>
+  ) {}
+
+  receive(data: string): void {
     // Parse JSON if possible, otherwise use string as-is
-    let parsed: Incoming;
-    try {
-      parsed = JSON.parse(data) as Incoming;
-    } catch {
-      // If not JSON, use string as-is (for Incoming = string case)
-      parsed = data as unknown as Incoming;
-    }
+    const parsed = parseMessage<Incoming>(data);
 
     // Emit received event
-    emitEvent(
+    this.eventHandler.emit(
       createEvent('received', {
         message: parsed,
       })
     );
 
-    // Call all registered callbacks first (they don't use buffer)
-    state.messageCallbacks.forEach((cb) => {
-      try {
-        cb(parsed);
-      } catch (error) {
-        console.error('Error in message callback:', error);
-      }
-    });
-
-    // Only buffer if there are active iterators consuming messages
-    if (state.activeMessageIterators > 0) {
-      // Check buffer overflow before adding
-      if (state.messageBuffer.length >= opts.buffer.receive.size) {
-        if (opts.buffer.receive.overflow === 'oldest') {
-          const dropped = state.messageBuffer.shift();
-          emitEvent(
-            createEvent('dropped', {
-              reason: 'buffer_full',
-              policy: 'oldest',
-              droppedMessage: dropped,
-              bufferSize: opts.buffer.receive.size,
-              bufferType: 'receive',
-            })
-          );
-        } else if (opts.buffer.receive.overflow === 'newest') {
-          // Don't add, drop this message
-          emitEvent(
-            createEvent('dropped', {
-              reason: 'buffer_full',
-              policy: 'newest',
-              droppedMessage: data,
-              bufferSize: opts.buffer.receive.size,
-              bufferType: 'receive',
-            })
-          );
-          return;
-        } else {
-          // error policy
-          emitEvent(
-            createEvent('dropped', {
-              reason: 'buffer_overflow',
-              policy: 'error',
-              bufferSize: opts.buffer.receive.size,
-              bufferType: 'receive',
-            })
-          );
-          throw new Error('Message buffer overflow');
-        }
-      }
-      state.messageBuffer.push(data);
-      // Notify waiting iterators immediately
-      // Copy the set to avoid issues if new resolvers are added during iteration
-      const resolvers = Array.from(state.messageResolvers);
-      state.messageResolvers.clear();
-      resolvers.forEach((resolve) => resolve());
-    }
+    // Handle callbacks and buffering
+    this.handleCallbacks(parsed);
+    this.bufferReceivedMessage(data);
   }
 
-  function scheduleReconnect(): void {
-    if (state.reconnectTimer) {
-      clearTimeout(state.reconnectTimer);
-    }
-
-    if (state.reconnectCount >= opts.reconnect.attempts) {
-      return;
-    }
-
-    const interval = calculateReconnectInterval(
-      state.reconnectCount,
-      opts.reconnect.interval,
-      opts.reconnect.backoff,
-      opts.reconnect.maxInterval
-    );
-
-    emitEvent(
-      createEvent('reconnect', {
-        attempt: state.reconnectCount + 1,
-        interval,
-      })
-    );
-
-    state.reconnectTimer = setTimeout(() => {
-      state.reconnectCount++;
-      emitEvent(
-        createEvent('reconnect', {
-          attempt: state.reconnectCount,
-        })
-      );
-      connect();
-    }, interval);
-  }
-
-  function connect(): void {
-    if (state.abortController?.signal.aborted) {
-      return;
-    }
-
-    try {
-      state.ws = opts.protocols
-        ? new WebSocket(opts.url, opts.protocols)
-        : new WebSocket(opts.url);
-
-      state.ws.onopen = () => {
-        state.reconnectCount = 0;
-        emitEvent(createEvent('open'));
-        flushMessageQueue();
-      };
-
-      state.ws.onmessage = (event) => {
-        const data =
-          typeof event.data === 'string' ? event.data : String(event.data);
-        emitMessage(data);
-      };
-
-      state.ws.onerror = (error) => {
-        emitEvent(createEvent('error', { error }));
-      };
-
-      state.ws.onclose = (event) => {
-        emitEvent(
-          createEvent('close', {
-            code: event.code,
-            reason: event.reason,
-            wasClean: event.wasClean,
-          })
-        );
-        if (
-          !state.isManualClose &&
-          opts.reconnect.enabled &&
-          state.reconnectCount < opts.reconnect.attempts
-        ) {
-          scheduleReconnect();
-        }
-      };
-    } catch (error) {
-      emitEvent(createEvent('error', { error }));
-      if (
-        opts.reconnect.enabled &&
-        state.reconnectCount < opts.reconnect.attempts
-      ) {
-        scheduleReconnect();
-      }
-    }
-  }
-
-  function flushMessageQueue(): void {
-    if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
-    while (state.messageQueue.length > 0) {
-      const message = state.messageQueue.shift();
-      if (message) {
-        state.ws.send(message);
-        // Emit sent event for queued messages
-        emitEvent(
-          createEvent('sent', {
-            message: message,
-          })
-        );
-      }
-    }
-  }
-
-  function send(data: Outgoing): void {
-    let message: string | ArrayBuffer | Blob;
-
-    if (
-      typeof data === 'object' &&
-      !(data instanceof ArrayBuffer) &&
-      !(data instanceof Blob)
-    ) {
-      message = JSON.stringify(data);
-    } else {
-      message = data as string | ArrayBuffer | Blob;
-    }
-
-    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-      state.ws.send(message);
-      // Emit sent event
-      emitEvent(
-        createEvent('sent', {
-          message: data,
-        })
-      );
-    } else {
-      // Buffer for later
-      const messageStr =
-        typeof message === 'string' ? message : String(message);
-      if (state.messageQueue.length >= opts.buffer.send.size) {
-        if (opts.buffer.send.overflow === 'oldest') {
-          const dropped = state.messageQueue.shift();
-          emitEvent(
-            createEvent('dropped', {
-              reason: 'send_queue_full',
-              policy: 'oldest',
-              droppedMessage: dropped,
-              bufferSize: opts.buffer.send.size,
-              bufferType: 'send',
-            })
-          );
-        } else if (opts.buffer.send.overflow === 'newest') {
-          emitEvent(
-            createEvent('dropped', {
-              reason: 'send_queue_full',
-              policy: 'newest',
-              droppedMessage: messageStr,
-              bufferSize: opts.buffer.send.size,
-              bufferType: 'send',
-            })
-          );
-          return;
-        } else {
-          emitEvent(
-            createEvent('dropped', {
-              reason: 'send_queue_overflow',
-              policy: 'error',
-              bufferSize: opts.buffer.send.size,
-              bufferType: 'send',
-            })
-          );
-          throw new Error('Send queue overflow');
-        }
-      }
-      state.messageQueue.push(messageStr);
-    }
-  }
-
-  function close(code?: number, reason?: string): void {
-    state.isManualClose = true;
-    if (state.reconnectTimer) {
-      clearTimeout(state.reconnectTimer);
-      state.reconnectTimer = null;
-    }
-    if (state.ws) {
-      state.ws.close(code, reason);
-      state.ws = null;
-    }
-    if (state.abortController) {
-      state.abortController.abort();
-      state.abortController = null;
-    }
-    state.messageQueue = [];
-  }
-
-  async function sendMessages(
-    messages: AsyncIterable<Outgoing>,
+  async receiveMessages(
+    messages: AsyncIterable<string>,
     options?: { signal?: AbortSignal }
   ): Promise<void> {
     const signal = options?.signal;
@@ -369,7 +135,7 @@ export function createSocket<
         if (signal?.aborted) {
           break;
         }
-        send(message);
+        this.receive(message);
       }
     } catch (error) {
       if (signal?.aborted) {
@@ -380,39 +146,398 @@ export function createSocket<
     }
   }
 
-  const socket: Socket<Incoming, Outgoing> = {
-    messages(options) {
-      const signal = options?.signal;
-      return messagesGenerator<Incoming>(state, signal);
-    },
+  send(data: Outgoing): void {
+    const message = serializeMessage(data);
 
-    events(options) {
-      const signal = options?.signal;
-      return eventsGenerator<Incoming>(state, signal);
-    },
+    // Try to send immediately if connected
+    if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
+      this.handleSendImmediately(message, data);
+      return;
+    }
 
-    onMessage(callback) {
-      state.messageCallbacks.add(callback);
-      return () => {
-        state.messageCallbacks.delete(callback);
+    // Buffer for later
+    const messageStr =
+      typeof message === 'string' ? message : String(message);
+    this.queueSendMessage(messageStr);
+  }
+
+  async sendMessages(
+    messages: AsyncIterable<Outgoing>,
+    options?: { signal?: AbortSignal }
+  ): Promise<void> {
+    const signal = options?.signal;
+
+    try {
+      for await (const message of messages) {
+        if (signal?.aborted) {
+          break;
+        }
+        this.send(message);
+      }
+    } catch (error) {
+      if (signal?.aborted) {
+        // AbortSignal cancellation is considered normal termination
+        return;
+      }
+      throw error;
+    }
+  }
+
+  flushQueue(): void {
+    if (!this.state.ws || this.state.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    while (this.state.messageQueue.length > 0) {
+      const message = this.state.messageQueue.shift();
+      if (message) {
+        this.state.ws.send(message);
+        // Emit sent event for queued messages
+        this.eventHandler.emit(
+          createEvent('sent', {
+            message: message,
+          })
+        );
+      }
+    }
+  }
+
+  private handleCallbacks(parsed: Incoming): void {
+    // Call all registered callbacks first (they don't use buffer)
+    this.state.messageCallbacks.forEach((cb) => {
+      try {
+        cb(parsed);
+      } catch (error) {
+        console.error('Error in message callback:', error);
+      }
+    });
+  }
+
+  private bufferReceivedMessage(data: string): void {
+    // Only buffer if there are active iterators consuming messages
+    if (this.state.activeMessageIterators === 0) {
+      return;
+    }
+
+    const overflowResult = handleBufferOverflow(
+      this.opts.buffer.receive.overflow,
+      this.state.messageBuffer,
+      data,
+      this.opts.buffer.receive.size,
+      'receive'
+    );
+
+    if (overflowResult.action === 'error') {
+      this.eventHandler.emit(
+        createDroppedEvent(
+          'buffer_overflow',
+          this.opts.buffer.receive.overflow,
+          undefined,
+          this.opts.buffer.receive.size,
+          'receive'
+        )
+      );
+      throw new Error('Message buffer overflow');
+    }
+
+    if (overflowResult.action === 'drop_newest') {
+      this.eventHandler.emit(
+        createDroppedEvent(
+          'buffer_full',
+          this.opts.buffer.receive.overflow,
+          overflowResult.dropped,
+          this.opts.buffer.receive.size,
+          'receive'
+        )
+      );
+      return;
+    }
+
+    if (overflowResult.action === 'drop_oldest') {
+      this.eventHandler.emit(
+        createDroppedEvent(
+          'buffer_full',
+          this.opts.buffer.receive.overflow,
+          overflowResult.dropped,
+          this.opts.buffer.receive.size,
+          'receive'
+        )
+      );
+      // drop_oldest already removed oldest item, now add new one
+      this.state.messageBuffer.push(data);
+      // Notify waiting iterators immediately
+      const resolvers = Array.from(this.state.messageResolvers);
+      this.state.messageResolvers.clear();
+      resolvers.forEach((resolve) => resolve());
+      return;
+    }
+
+    // Normal case: add to buffer
+    if (overflowResult.action === 'add') {
+      this.state.messageBuffer.push(data);
+      // Notify waiting iterators immediately
+      // Copy the set to avoid issues if new resolvers are added during iteration
+      const resolvers = Array.from(this.state.messageResolvers);
+      this.state.messageResolvers.clear();
+      resolvers.forEach((resolve) => resolve());
+    }
+  }
+
+  private handleSendImmediately(message: string | ArrayBuffer | Blob, data: Outgoing): void {
+    if (!this.state.ws || this.state.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    this.state.ws.send(message);
+    // Emit sent event
+    this.eventHandler.emit(
+      createEvent('sent', {
+        message: data,
+      })
+    );
+  }
+
+  private queueSendMessage(messageStr: string): void {
+    const overflowResult = handleBufferOverflow(
+      this.opts.buffer.send.overflow,
+      this.state.messageQueue,
+      messageStr,
+      this.opts.buffer.send.size,
+      'send'
+    );
+
+    if (overflowResult.action === 'error') {
+      this.eventHandler.emit(
+        createDroppedEvent(
+          'send_queue_overflow',
+          this.opts.buffer.send.overflow,
+          undefined,
+          this.opts.buffer.send.size,
+          'send'
+        )
+      );
+      throw new Error('Send queue overflow');
+    }
+
+    if (overflowResult.action === 'drop_newest') {
+      this.eventHandler.emit(
+        createDroppedEvent(
+          'send_queue_full',
+          this.opts.buffer.send.overflow,
+          overflowResult.dropped,
+          this.opts.buffer.send.size,
+          'send'
+        )
+      );
+      return;
+    }
+
+    if (overflowResult.action === 'drop_oldest') {
+      this.eventHandler.emit(
+        createDroppedEvent(
+          'send_queue_full',
+          this.opts.buffer.send.overflow,
+          overflowResult.dropped,
+          this.opts.buffer.send.size,
+          'send'
+        )
+      );
+      // drop_oldest already removed oldest item, now add new one
+      this.state.messageQueue.push(messageStr);
+      return;
+    }
+
+    if (overflowResult.action === 'add') {
+      this.state.messageQueue.push(messageStr);
+    }
+  }
+}
+
+/**
+ * Handles WebSocket connection, reconnection, and lifecycle management
+ */
+class ConnectionHandler<Incoming, Outgoing> {
+  constructor(
+    private state: InternalSocketState<Incoming>,
+    private opts: NormalizedSocketOptions,
+    private eventHandler: EventHandler<Incoming>,
+    private messageHandler: MessageHandler<Incoming, Outgoing>
+  ) {}
+
+  scheduleReconnect(): void {
+    if (this.state.reconnectTimer) {
+      clearTimeout(this.state.reconnectTimer);
+    }
+
+    if (this.state.reconnectCount >= this.opts.reconnect.attempts) {
+      return;
+    }
+
+    const interval = calculateReconnectInterval(
+      this.state.reconnectCount,
+      this.opts.reconnect.interval,
+      this.opts.reconnect.backoff,
+      this.opts.reconnect.maxInterval
+    );
+
+    this.eventHandler.emit(
+      createEvent('reconnect', {
+        attempt: this.state.reconnectCount + 1,
+        interval,
+      })
+    );
+
+    this.state.reconnectTimer = setTimeout(() => {
+      this.state.reconnectCount++;
+      this.eventHandler.emit(
+        createEvent('reconnect', {
+          attempt: this.state.reconnectCount,
+        })
+      );
+      this.connect();
+    }, interval);
+  }
+
+  connect(): void {
+    if (this.state.abortController?.signal.aborted) {
+      return;
+    }
+
+    try {
+      this.state.ws = this.opts.protocols
+        ? new WebSocket(this.opts.url, this.opts.protocols)
+        : new WebSocket(this.opts.url);
+
+      this.state.ws.onopen = () => {
+        this.state.reconnectCount = 0;
+        this.eventHandler.emit(createEvent('open'));
+        this.messageHandler.flushQueue();
       };
-    },
 
-    onEvent(callback) {
-      state.eventCallbacks.add(callback);
-      return () => {
-        state.eventCallbacks.delete(callback);
+      this.state.ws.onmessage = (event) => {
+        const data =
+          typeof event.data === 'string' ? event.data : String(event.data);
+        this.messageHandler.receive(data);
       };
-    },
 
-    connect,
-    close,
-    send,
-    sendMessages,
-  };
+      this.state.ws.onerror = (error) => {
+        this.eventHandler.emit(createEvent('error', { error }));
+      };
 
-  // Auto-connect by default
-  connect();
+      this.state.ws.onclose = (event) => {
+        this.eventHandler.emit(
+          createEvent('close', {
+            code: event.code,
+            reason: event.reason,
+            wasClean: event.wasClean,
+          })
+        );
+        if (
+          !this.state.isManualClose &&
+          this.opts.reconnect.enabled &&
+          this.state.reconnectCount < this.opts.reconnect.attempts
+        ) {
+          this.scheduleReconnect();
+        }
+      };
+    } catch (error) {
+      this.eventHandler.emit(createEvent('error', { error }));
+      if (
+        this.opts.reconnect.enabled &&
+        this.state.reconnectCount < this.opts.reconnect.attempts
+      ) {
+        this.scheduleReconnect();
+      }
+    }
+  }
 
-  return socket;
+  close(code?: number, reason?: string): void {
+    this.state.isManualClose = true;
+    if (this.state.reconnectTimer) {
+      clearTimeout(this.state.reconnectTimer);
+      this.state.reconnectTimer = null;
+    }
+    if (this.state.ws) {
+      this.state.ws.close(code, reason);
+      this.state.ws = null;
+    }
+    if (this.state.abortController) {
+      this.state.abortController.abort();
+      this.state.abortController = null;
+    }
+    this.state.messageQueue = [];
+  }
+}
+
+/**
+ * Main Socket implementation that combines EventHandler, MessageHandler, and ConnectionHandler
+ */
+class SocketImpl<Incoming, Outgoing> implements Socket<Incoming, Outgoing> {
+  private eventHandler: EventHandler<Incoming>;
+  private messageHandler: MessageHandler<Incoming, Outgoing>;
+  private connectionHandler: ConnectionHandler<Incoming, Outgoing>;
+
+  constructor(
+    private state: InternalSocketState<Incoming>,
+    private opts: NormalizedSocketOptions
+  ) {
+    // Create handlers in dependency order
+    this.eventHandler = new EventHandler<Incoming>(this.state);
+
+    this.messageHandler = new MessageHandler<Incoming, Outgoing>(
+      this.state,
+      this.opts,
+      this.eventHandler
+    );
+
+    this.connectionHandler = new ConnectionHandler<Incoming, Outgoing>(
+      this.state,
+      this.opts,
+      this.eventHandler,
+      this.messageHandler
+    );
+  }
+
+  messages(options?: { signal?: AbortSignal }): AsyncIterable<Incoming> {
+    const signal = options?.signal;
+    return messagesGenerator<Incoming>(this.state, signal);
+  }
+
+  events(options?: { signal?: AbortSignal }): AsyncIterable<SocketEvent> {
+    const signal = options?.signal;
+    return eventsGenerator<Incoming>(this.state, signal);
+  }
+
+  onMessage(callback: (data: Incoming) => void): () => void {
+    this.state.messageCallbacks.add(callback);
+    return () => {
+      this.state.messageCallbacks.delete(callback);
+    };
+  }
+
+  onEvent(callback: (event: SocketEvent) => void): () => void {
+    this.state.eventCallbacks.add(callback);
+    return () => {
+      this.state.eventCallbacks.delete(callback);
+    };
+  }
+
+  connect(): void {
+    this.connectionHandler.connect();
+  }
+
+  close(code?: number, reason?: string): void {
+    this.connectionHandler.close(code, reason);
+  }
+
+  send(data: Outgoing): void {
+    this.messageHandler.send(data);
+  }
+
+  async sendMessages(
+    messages: AsyncIterable<Outgoing>,
+    options?: { signal?: AbortSignal }
+  ): Promise<void> {
+    return this.messageHandler.sendMessages(messages, options);
+  }
 }
