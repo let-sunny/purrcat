@@ -5,7 +5,7 @@
   <br>
   <a href="https://www.npmjs.org/package/purrcat"><img src="https://img.shields.io/npm/v/purrcat.svg" alt="npm"></a>
   <img src="https://github.com/let-sunny/purrcat/workflows/CI/badge.svg" alt="build status">
-  <a href="https://unpkg.com/purrcat/dist/index.iife.js"><img src="https://img.badgesize.io/https://unpkg.com/purrcat/dist/index.iife.js?compression=gzip" alt="gzip size"></a>
+  <a href="https://unpkg.com/purrcat/dist/index.global.js"><img src="https://img.badgesize.io/https://unpkg.com/purrcat/dist/index.global.js?compression=gzip" alt="gzip size"></a>
 </p>
 
 > Lightweight WebSocket client with auto-reconnect, backoff strategies, bounded message buffering, and async iterables
@@ -26,6 +26,12 @@ A lightweight, event-driven WebSocket client library. Perfect for real-time appl
 
 **Flexible**: callback-based or generator-based APIs, your choice
 
+## 🎮 Try It Live
+
+**[Interactive Demo →](https://let-sunny.github.io/purrcat/)**
+
+Try purrcat in your browser with our interactive demo. Test WebSocket connections, send messages, and see reconnection in action.
+
 ## Features
 
 - **Automatic reconnection** with exponential/linear backoff + jitter
@@ -39,6 +45,7 @@ A lightweight, event-driven WebSocket client library. Perfect for real-time appl
 
 ## Table of Contents
 
+- [Try It Live](#-try-it-live)
 - [Installation](#installation)
   - [Requirements](#requirements)
 - [Usage](#usage)
@@ -65,7 +72,7 @@ npm install purrcat
 
 **UMD build (via unpkg):**
 ```html
-<script src="https://unpkg.com/purrcat/dist/index.iife.js"></script>
+<script src="https://unpkg.com/purrcat/dist/index.global.js"></script>
 ```
 
 ### Requirements
@@ -84,7 +91,7 @@ npm install purrcat
 When using the UMD build via `<script>` tag, the library is available as a global `purrcat`:
 
 ```html
-<script src="https://unpkg.com/purrcat/dist/index.iife.js"></script>
+<script src="https://unpkg.com/purrcat/dist/index.global.js"></script>
 <script>
   const socket = purrcat.createSocket({
     url: 'wss://echo.websocket.org',
