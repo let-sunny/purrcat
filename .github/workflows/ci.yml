@@ -12,7 +12,10 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x, 24.x, 25.x]
+        # 18.x: minimum supported version (engines: ">=18.0.0")
+        # 24.x: current LTS
+        # 25.x: latest version
 
     steps:
       - name: Checkout code
