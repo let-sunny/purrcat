@@ -1,19 +1,37 @@
 # purrcat
 
+[![Build Status](https://github.com/let-sunny/purrcat/workflows/CI/badge.svg)](https://github.com/let-sunny/purrcat/actions)
+[![npm version](https://img.shields.io/npm/v/purrcat.svg)](https://www.npmjs.com/package/purrcat)
+[![gzip size](https://img.shields.io/bundlephobia/minzip/purrcat)](https://bundlephobia.com/package/purrcat)
+
 > Lightweight WebSocket client with auto-reconnect, backoff strategies, bounded message buffering, and async iterables
 
 A lightweight, event-driven WebSocket client library. Perfect for real-time applications that need reliable connections with automatic reconnection and message buffering.
 
+## Highlights
+
+**Microscopic**: weighs less than 6KB minified (~2KB gzipped)
+
+**Reliable**: automatic reconnection with exponential/linear backoff + jitter
+
+**Modern**: async iterables for generator-based message streams
+
+**Type-Safe**: full TypeScript support with generic message types
+
+**Zero Dependencies**: uses native WebSocket API only
+
+**Flexible**: callback-based or generator-based APIs, your choice
+
 ## Features
 
-- 🔌 **Automatic reconnection** with exponential/linear backoff + jitter
-- 📦 **Bounded message buffer** with configurable overflow policies
-- 🎯 **Generator-based streams** for async iteration
-- 📝 **TypeScript** support
-- 🌐 **Browser & Node.js** compatible (Node.js 18+ required for native WebSocket)
-- 🪶 **Zero dependencies** (uses native WebSocket API)
-- ⚡ **Tiny bundle size**
-- 🛑 **AbortSignal** support for stream cancellation
+- **Automatic reconnection** with exponential/linear backoff + jitter
+- **Bounded message buffer** with configurable overflow policies
+- **Generator-based streams** for async iteration
+- **TypeScript** support
+- **Browser & Node.js** compatible (Node.js 18+ required for native WebSocket)
+- **Zero dependencies** (uses native WebSocket API)
+- **Tiny bundle size**
+- **AbortSignal** support for stream cancellation
 
 ## Installation
 
