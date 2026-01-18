@@ -48,6 +48,7 @@ jobs:
         with:
           files: ./coverage/coverage-final.json
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
           # Coverage report will be posted as a comment on PR
 
   build:
