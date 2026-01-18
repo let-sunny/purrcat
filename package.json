@@ -1,6 +1,6 @@
 {
   "name": "purrcat",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Lightweight WebSocket client with auto-reconnect, backoff strategies, bounded message buffering, and async iterables",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
