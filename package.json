@@ -1,0 +1,51 @@
+{
+  "name": "purrcat",
+  "version": "0.1.0",
+  "description": "Lightweight WebSocket client with auto-reconnect, backoff strategies, bounded message buffering, and async iterables",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "websocket",
+    "ws",
+    "client",
+    "realtime",
+    "connection",
+    "reconnect",
+    "backoff",
+    "async-iterable",
+    "generator",
+    "abort-signal",
+    "typescript",
+    "message-buffer",
+    "bounded-buffer"
+  ],
+  "author": "minseon",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "volta": {
+    "node": "24.13.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/let-sunny/purrcat.git"
+  },
+  "bugs": {
+    "url": "https://github.com/let-sunny/purrcat/issues"
+  },
+  "homepage": "https://github.com/let-sunny/purrcat#readme"
+}
