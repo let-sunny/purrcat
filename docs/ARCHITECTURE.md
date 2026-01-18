@@ -1,126 +1,126 @@
-# purrcat 아키텍처 문서
+# purrcat Architecture Documentation
 
-## 목차
+## Table of Contents
 
-1. [개요](#개요)
-2. [핵심 설계 원칙](#핵심-설계-원칙)
-3. [모듈 구조](#모듈-구조)
-4. [클래스 기반 구조](#클래스-기반-구조)
-5. [상태 관리](#상태-관리)
-6. [API 설계: 콜백 vs 제너레이터](#api-설계-콜백-vs-제너레이터)
-7. [이벤트 시스템](#이벤트-시스템)
-8. [제너레이터 기반 스트림](#제너레이터-기반-스트림)
-9. [재연결 메커니즘](#재연결-메커니즘)
-10. [버퍼 관리](#버퍼-관리)
-11. [데이터 흐름](#데이터-흐름)
-12. [설계 결정 사항](#설계-결정-사항)
-13. [확장성 고려사항](#확장성-고려사항)
-14. [성능 고려사항](#성능-고려사항)
-15. [결론](#결론)
-
----
-
-## 개요
-
-purrcat은 경량화된 WebSocket 클라이언트 라이브러리로, 자동 재연결, 백오프 전략, 메시지 버퍼링, 그리고 async iterable을 통한 스트림 처리를 제공합니다.
-
-### 주요 특징
-
-- **경량화**: 6KB 미만 (gzip 압축 시 ~2KB)
-- **자동 재연결**: 지수/선형 백오프 + 지터
-- **버퍼 관리**: 크기 제한 및 오버플로우 정책
-- **Async Iterable**: 제너레이터 기반 메시지 스트림
-- **타입 안정성**: 완전한 TypeScript 지원
-- **Zero Dependencies**: 네이티브 WebSocket API만 사용
+1. [Overview](#overview)
+2. [Core Design Principles](#core-design-principles)
+3. [Module Structure](#module-structure)
+4. [Class-Based Structure](#class-based-structure)
+5. [State Management](#state-management)
+6. [API Design: Callback vs Generator](#api-design-callback-vs-generator)
+7. [Event System](#event-system)
+8. [Generator-Based Streams](#generator-based-streams)
+9. [Reconnection Mechanism](#reconnection-mechanism)
+10. [Buffer Management](#buffer-management)
+11. [Data Flow](#data-flow)
+12. [Design Decisions](#design-decisions)
+13. [Extensibility Considerations](#extensibility-considerations)
+14. [Performance Considerations](#performance-considerations)
+15. [Conclusion](#conclusion)
 
 ---
 
-## 핵심 설계 원칙
+## Overview
 
-### 1. 클래스 기반 구조
+purrcat is a lightweight WebSocket client library that provides auto-reconnect, backoff strategies, message buffering, and stream processing through async iterables.
 
-가독성과 유지보수성을 향상시키기 위해 클래스 기반 구조를 채택했습니다.
+### Key Features
 
-**왜 클래스를 선택했는가?**
-
-- **명확한 책임 분리**: 각 클래스가 단일 책임을 가짐
-  - `EventHandler`: 이벤트 발생 및 큐 관리
-  - `MessageHandler`: 메시지 수신/송신 및 버퍼링
-  - `ConnectionHandler`: WebSocket 연결/재연결 관리
-  - `Socket`: 위 핸들러들을 조합하여 Socket 인터페이스 구현
-- **가독성 향상**: Public 메서드를 상단, Private 메서드를 하단에 배치
-- **유지보수성**: 각 클래스를 독립적으로 수정 및 테스트 가능
-- **타입 안정성**: 제네릭 타입을 명확하게 전달
-
-### 2. 이벤트 중심 아키텍처
-
-모든 상태 변화를 이벤트로 추적하여 투명성과 디버깅 용이성을 확보합니다.
-
-### 3. 제너레이터 기반 스트림
-
-Async iterable을 활용하여 메시지와 이벤트를 스트림으로 처리합니다.
+- **Lightweight**: Less than 6KB (~2KB when gzipped)
+- **Auto-Reconnect**: Exponential/linear backoff + jitter
+- **Buffer Management**: Size limits and overflow policies
+- **Async Iterable**: Generator-based message streams
+- **Type Safety**: Full TypeScript support
+- **Zero Dependencies**: Uses only native WebSocket API
 
 ---
 
-## 모듈 구조
+## Core Design Principles
+
+### 1. Class-Based Structure
+
+We adopted a class-based structure to improve readability and maintainability.
+
+**Why Classes?**
+
+- **Clear Separation of Concerns**: Each class has a single responsibility
+  - `EventHandler`: Event emission and queue management
+  - `MessageHandler`: Message receiving/sending and buffering
+  - `ConnectionHandler`: WebSocket connection/reconnection management
+  - `Socket`: Combines handlers to implement Socket interface
+- **Improved Readability**: Public methods at the top, private methods at the bottom
+- **Maintainability**: Each class can be modified and tested independently
+- **Type Safety**: Generic types are clearly passed
+
+### 2. Event-Driven Architecture
+
+All state changes are tracked as events to ensure transparency and ease of debugging.
+
+### 3. Generator-Based Streams
+
+Messages and events are processed as streams using async iterables.
+
+---
+
+## Module Structure
 
 ```
 src/
-├── index.ts          # 공개 API 진입점
-├── socket.ts         # Socket 클래스 + createSocket 팩토리
-├── handlers/         # 핸들러 클래스들
-│   ├── event-handler.ts      # EventHandler 클래스
-│   ├── message-handler.ts    # MessageHandler 클래스
-│   └── connection-handler.ts # ConnectionHandler 클래스
-├── generators.ts     # Async iterable 제너레이터
-├── types.ts          # TypeScript 타입 정의
-├── utils.ts          # 유틸리티 함수
-└── constants.ts      # 상수 정의
+├── index.ts          # Public API entry point
+├── socket.ts         # Socket class + createSocket factory
+├── handlers/         # Handler classes
+│   ├── event-handler.ts      # EventHandler class
+│   ├── message-handler.ts    # MessageHandler class
+│   └── connection-handler.ts # ConnectionHandler class
+├── generators.ts     # Async iterable generators
+├── types.ts          # TypeScript type definitions
+├── utils.ts          # Utility functions
+└── constants.ts      # Constant definitions
 ```
 
-### 모듈별 역할
+### Module Responsibilities
 
 #### `socket.ts`
-- `createSocket()`: 팩토리 함수로 소켓 인스턴스 생성
-- `Socket`: 위 핸들러들을 조합하여 Socket 인터페이스 구현
+- `createSocket()`: Factory function to create socket instance
+- `Socket`: Combines handlers to implement Socket interface
 
 #### `handlers/event-handler.ts`
-- `EventHandler`: 이벤트 발생 및 큐 관리
+- `EventHandler`: Event emission and queue management
 
 #### `handlers/message-handler.ts`
-- `MessageHandler`: 메시지 수신/송신 및 버퍼링
+- `MessageHandler`: Message receiving/sending and buffering
 
 #### `handlers/connection-handler.ts`
-- `ConnectionHandler`: WebSocket 연결/재연결 관리
+- `ConnectionHandler`: WebSocket connection/reconnection management
 
 #### `generators.ts`
-- `messagesGenerator()`: 메시지 스트림 제너레이터
-- `eventsGenerator()`: 이벤트 스트림 제너레이터
+- `messagesGenerator()`: Message stream generator
+- `eventsGenerator()`: Event stream generator
 
 #### `types.ts`
-- 모든 TypeScript 타입 정의
-- 공개 API 인터페이스
-- 내부 상태 타입
+- All TypeScript type definitions
+- Public API interfaces
+- Internal state types
 
 #### `utils.ts`
-- `createEvent()`: 이벤트 객체 생성
-- `calculateReconnectInterval()`: 재연결 간격 계산
-- `normalizeOptions()`: 옵션 정규화
-- `createState()`: 상태 객체 생성
-- `parseMessage()`: 메시지 파싱
-- `serializeMessage()`: 메시지 직렬화
-- `handleBufferOverflow()`: 버퍼 오버플로우 처리
-- `createDroppedEvent()`: 드롭된 이벤트 생성
+- `createEvent()`: Event object creation
+- `calculateReconnectInterval()`: Reconnection interval calculation
+- `normalizeOptions()`: Options normalization
+- `createState()`: State object creation
+- `parseMessage()`: Message parsing
+- `serializeMessage()`: Message serialization
+- `handleBufferOverflow()`: Buffer overflow handling
+- `createDroppedEvent()`: Dropped event creation
 
 #### `constants.ts`
-- 하드코딩된 숫자 값들을 상수로 정의
-- `DEFAULT_RECONNECT_INTERVAL`, `MAX_RECENT_EVENTS` 등
+- Hardcoded numeric values defined as constants
+- `DEFAULT_RECONNECT_INTERVAL`, `MAX_RECENT_EVENTS`, etc.
 
 ---
 
-## 클래스 기반 구조
+## Class-Based Structure
 
-### 클래스 계층 구조
+### Class Hierarchy
 
 ```
 createSocket()
@@ -131,30 +131,30 @@ Socket<Incoming, Outgoing>
     └── ConnectionHandler<Incoming, Outgoing>
 ```
 
-### EventHandler 클래스
+### EventHandler Class
 
-이벤트 발생 및 큐 관리를 담당합니다.
+Handles event emission and queue management.
 
 ```typescript
 class EventHandler<Incoming> {
   constructor(private state: InternalSocketState<Incoming>) {}
   
   emit(event: SocketEvent): void {
-    // 콜백 호출
-    // 이벤트 큐 관리
-    // 이터레이터 알림
+    // Call callbacks
+    // Manage event queue
+    // Notify iterators
   }
 }
 ```
 
-**주요 책임:**
-- 이벤트 콜백 호출
-- 이벤트 큐 관리 (메모리 누수 방지)
-- 이터레이터 알림 (resolver 깨우기)
+**Key Responsibilities:**
+- Event callback invocation
+- Event queue management (prevent memory leaks)
+- Iterator notification (wake up resolvers)
 
-### MessageHandler 클래스
+### MessageHandler Class
 
-메시지 수신/송신 및 버퍼링을 담당합니다.
+Handles message receiving/sending and buffering.
 
 ```typescript
 class MessageHandler<Incoming, Outgoing> {
@@ -164,14 +164,14 @@ class MessageHandler<Incoming, Outgoing> {
     private eventHandler: EventHandler<Incoming>
   ) {}
   
-  // Public 메서드
+  // Public methods
   receive(data: string): void
   receiveMessages(messages: AsyncIterable<string>, options?): Promise<void>
   send(data: Outgoing): void
   sendMessages(messages: AsyncIterable<Outgoing>, options?): Promise<void>
   flushQueue(): void
   
-  // Private 메서드
+  // Private methods
   private handleCallbacks(parsed: Incoming): void
   private bufferReceivedMessage(data: string): void
   private handleSendImmediately(message, data): void
@@ -179,20 +179,20 @@ class MessageHandler<Incoming, Outgoing> {
 }
 ```
 
-**주요 책임:**
-- 메시지 수신 처리 (파싱, 콜백, 버퍼링)
-- 메시지 송신 처리 (직렬화, 즉시 전송 또는 큐잉)
-- 버퍼 오버플로우 처리
-- 큐 플러시
+**Key Responsibilities:**
+- Message receiving (parsing, callbacks, buffering)
+- Message sending (serialization, immediate send or queue)
+- Buffer overflow handling
+- Queue flushing
 
-**메서드 분리:**
-- `receive`: `handleCallbacks` + `bufferReceivedMessage`로 분리
-- `send`: `handleSendImmediately` + `queueSendMessage`로 분리
-- 일관된 네이밍 패턴: `handle*` (처리 로직), `buffer*/queue*` (버퍼/큐 관련)
+**Method Separation:**
+- `receive`: Split into `handleCallbacks` + `bufferReceivedMessage`
+- `send`: Split into `handleSendImmediately` + `queueSendMessage`
+- Consistent naming pattern: `handle*` (processing logic), `buffer*/queue*` (buffer/queue related)
 
-### ConnectionHandler 클래스
+### ConnectionHandler Class
 
-WebSocket 연결/재연결 및 생명주기 관리를 담당합니다.
+Handles WebSocket connection/reconnection and lifecycle management.
 
 ```typescript
 class ConnectionHandler<Incoming, Outgoing> {
@@ -209,15 +209,15 @@ class ConnectionHandler<Incoming, Outgoing> {
 }
 ```
 
-**주요 책임:**
-- WebSocket 연결 생성 및 관리
-- 재연결 스케줄링
-- 연결 종료 처리
-- 이벤트 핸들러 설정 (onopen, onmessage, onerror, onclose)
+**Key Responsibilities:**
+- WebSocket connection creation and management
+- Reconnection scheduling
+- Connection termination handling
+- Event handler setup (onopen, onmessage, onerror, onclose)
 
-### Socket 클래스
+### Socket Class
 
-위 핸들러들을 조합하여 Socket 인터페이스를 구현합니다.
+Combines handlers to implement Socket interface.
 
 ```typescript
 class Socket<Incoming, Outgoing> implements SocketInterface<Incoming, Outgoing> {
@@ -237,55 +237,55 @@ class Socket<Incoming, Outgoing> implements SocketInterface<Incoming, Outgoing> 
 }
 ```
 
-**주요 책임:**
-- 핸들러 인스턴스 생성 및 조합
-- Socket 인터페이스 구현
-- Public API 제공
+**Key Responsibilities:**
+- Handler instance creation and composition
+- Socket interface implementation
+- Public API provision
 
-**파일 구조:**
-- `socket.ts`: Socket 클래스와 createSocket 팩토리 함수
-- 각 핸들러는 `handlers/` 디렉토리의 별도 파일로 분리
+**File Structure:**
+- `socket.ts`: Socket class and createSocket factory function
+- Each handler is in a separate file in the `handlers/` directory
 
-### 코드 구조 개선
+### Code Structure Improvements
 
-**Public 메서드 우선 배치:**
-- 클래스 상단에 Public 메서드를 배치하여 인터페이스를 빠르게 파악 가능
-- `receive`, `send`, `receiveMessages`, `sendMessages`, `flushQueue` 등
+**Public Methods First:**
+- Public methods at the top of the class for quick interface understanding
+- `receive`, `send`, `receiveMessages`, `sendMessages`, `flushQueue`, etc.
 
-**Private 메서드 하단 배치:**
-- 구현 세부사항은 클래스 하단에 배치
-- `handleCallbacks`, `bufferReceivedMessage`, `handleSendImmediately`, `queueSendMessage` 등
+**Private Methods Last:**
+- Implementation details at the bottom of the class
+- `handleCallbacks`, `bufferReceivedMessage`, `handleSendImmediately`, `queueSendMessage`, etc.
 
 ---
 
-## 상태 관리
+## State Management
 
 ### InternalSocketState
 
-소켓의 모든 내부 상태를 관리하는 객체입니다.
+Manages all internal state of the socket.
 
 ```typescript
 interface InternalSocketState<Incoming> {
-  ws: WebSocket | null;                    // WebSocket 인스턴스
-  isManualClose: boolean;                   // 수동 종료 여부
-  reconnectCount: number;                   // 재연결 시도 횟수
-  reconnectTimer: ReturnType<typeof setTimeout> | null;  // 재연결 타이머
-  messageBuffer: string[];                  // 수신 메시지 버퍼
-  eventQueue: SocketEvent[];                // 이벤트 큐
-  messageQueue: string[];                   // 송신 메시지 큐
-  messageCallbacks: Set<(data: Incoming) => void>;  // 메시지 콜백
-  eventCallbacks: Set<(event: SocketEvent) => void>;  // 이벤트 콜백
-  abortController: AbortController | null;  // 중단 컨트롤러
-  activeMessageIterators: number;          // 활성 메시지 이터레이터 수
-  activeEventIterators: number;             // 활성 이벤트 이터레이터 수
-  messageResolvers: Set<() => void>;        // 메시지 대기 해결자
-  eventResolvers: Set<() => void>;          // 이벤트 대기 해결자
+  ws: WebSocket | null;                    // WebSocket instance
+  isManualClose: boolean;                   // Manual close flag
+  reconnectCount: number;                   // Reconnection attempt count
+  reconnectTimer: ReturnType<typeof setTimeout> | null;  // Reconnection timer
+  messageBuffer: string[];                  // Received message buffer
+  eventQueue: SocketEvent[];                // Event queue
+  messageQueue: string[];                   // Send message queue
+  messageCallbacks: Set<(data: Incoming) => void>;  // Message callbacks
+  eventCallbacks: Set<(event: SocketEvent) => void>;  // Event callbacks
+  abortController: AbortController | null;  // Abort controller
+  activeMessageIterators: number;          // Active message iterator count
+  activeEventIterators: number;             // Active event iterator count
+  messageResolvers: Set<() => void>;        // Message waiting resolvers
+  eventResolvers: Set<() => void>;          // Event waiting resolvers
 }
 ```
 
-### 상태 접근 패턴
+### State Access Pattern
 
-모든 핸들러 클래스는 생성자를 통해 `state`와 `opts`를 받아 사용합니다:
+All handler classes receive `state` and `opts` through constructors:
 
 ```typescript
 class MessageHandler<Incoming, Outgoing> {
@@ -296,7 +296,7 @@ class MessageHandler<Incoming, Outgoing> {
   ) {}
   
   receive(data: string): void {
-    // state와 opts에 직접 접근
+    // Direct access to state and opts
     const parsed = parseMessage<Incoming>(data);
     this.handleCallbacks(parsed);
     this.bufferReceivedMessage(data);
@@ -306,11 +306,11 @@ class MessageHandler<Incoming, Outgoing> {
 
 ---
 
-## API 설계: 콜백 vs 제너레이터
+## API Design: Callback vs Generator
 
-purrcat은 두 가지 API 스타일을 모두 지원합니다. 각각의 장단점과 사용 시나리오를 이해하면 프로젝트에 맞는 선택을 할 수 있습니다.
+purrcat supports both API styles. Understanding the advantages and disadvantages of each helps you choose the right one for your project.
 
-### 콜백 기반 API
+### Callback-Based API
 
 ```typescript
 const socket = createSocket({ url: 'wss://example.com' });
@@ -324,89 +324,89 @@ socket.onEvent((event) => {
 });
 ```
 
-#### 장점
+#### Advantages
 
-1. **즉시 실행**: 메시지 도착 시 즉시 콜백 호출, 지연 없음
-2. **메모리 효율**: 버퍼링 없이 직접 처리 (이터레이터가 없을 때)
-3. **간단한 사용**: 설정이 단순하고 직관적
-4. **이벤트 기반**: 전통적인 이벤트 리스너 패턴과 유사
-5. **다중 핸들러**: 여러 콜백을 동시에 등록 가능
-6. **브로드캐스트**: 모든 등록된 콜백이 같은 메시지를 받음
+1. **Immediate Execution**: Callback called immediately when message arrives, no delay
+2. **Memory Efficient**: Direct processing without buffering (when no iterators)
+3. **Simple Usage**: Simple and intuitive setup
+4. **Event-Based**: Similar to traditional event listener pattern
+5. **Multiple Handlers**: Can register multiple callbacks simultaneously
+6. **Broadcast**: All registered callbacks receive the same message
 
-#### 단점
+#### Disadvantages
 
-1. **제어 흐름 제한**: 순차 처리나 조건부 처리가 어려움
-2. **에러 처리 복잡**: 각 콜백에서 개별적으로 에러 처리 필요
-3. **비동기 처리 어려움**: 콜백 내부에서 async/await 사용 시 주의 필요
-4. **중단 제어 어려움**: 특정 조건에서 메시지 수신 중단이 복잡
+1. **Limited Control Flow**: Difficult to do sequential or conditional processing
+2. **Complex Error Handling**: Each callback needs individual error handling
+3. **Async Processing Difficulty**: Care needed when using async/await inside callbacks
+4. **Difficult Cancellation**: Complex to stop message reception under specific conditions
 
-#### 추천 사용 시나리오
+#### Recommended Use Cases
 
-- **실시간 알림**: 메시지 도착 즉시 처리해야 하는 경우
-- **간단한 로깅/모니터링**: 모든 메시지를 단순히 기록하거나 전달하는 경우
-- **이벤트 기반 아키텍처**: 기존 이벤트 리스너 패턴과 일관성 유지
-- **다중 구독자**: 여러 핸들러가 동시에 메시지를 처리해야 하는 경우
-- **여러 페이지/컴포넌트**: 같은 메시지를 여러 곳에서 받아야 하는 경우
+- **Real-time Notifications**: When messages must be processed immediately upon arrival
+- **Simple Logging/Monitoring**: When all messages are simply logged or forwarded
+- **Event-Based Architecture**: To maintain consistency with existing event listener patterns
+- **Multiple Subscribers**: When multiple handlers need to process messages simultaneously
+- **Multiple Pages/Components**: When the same message needs to be received in multiple places
 
-### 제너레이터 기반 API
+### Generator-Based API
 
 ```typescript
 const socket = createSocket({ url: 'wss://example.com' });
 
-// 메시지 스트림
+// Message stream
 for await (const message of socket.messages()) {
   console.log('Received:', message);
-  // 조건부 처리, 중단 등이 쉬움
+  // Easy conditional processing, cancellation, etc.
   if (shouldStop(message)) break;
 }
 
-// 이벤트 스트림
+// Event stream
 for await (const event of socket.events({ signal: abortController.signal })) {
   console.log('Event:', event.type);
-  // AbortSignal로 중단 가능
+  // Can be cancelled with AbortSignal
 }
 ```
 
-#### 장점
+#### Advantages
 
-1. **순차 처리**: 메시지를 순서대로 하나씩 처리 가능
-2. **제어 흐름**: 조건문, 반복문, 중단 등 일반적인 제어 흐름 사용 가능
-3. **에러 처리**: try-catch로 통합 에러 처리 가능
-4. **중단 제어**: `break`, `return`, `AbortSignal`로 쉽게 중단 가능
-5. **비동기 처리**: async/await와 자연스럽게 통합
-6. **스트림 처리**: 백프레셔(backpressure) 처리에 유리
-7. **타입 안정성**: TypeScript와 잘 통합
+1. **Sequential Processing**: Can process messages one by one in order
+2. **Control Flow**: Can use conditionals, loops, cancellation, etc. - normal control flow
+3. **Error Handling**: Can use try-catch for unified error handling
+4. **Cancellation Control**: Easy to stop with `break`, `return`, `AbortSignal`
+5. **Async Processing**: Naturally integrates with async/await
+6. **Stream Processing**: Good for backpressure handling
+7. **Type Safety**: Well integrated with TypeScript
 
-#### 단점
+#### Disadvantages
 
-1. **메모리 사용**: 이터레이터가 활성화되면 버퍼링 필요
-2. **초기 지연**: 이터레이터 시작 전 메시지는 버퍼에 저장
-3. **메시지 소비 모델**: 제너레이터는 메시지를 **소비(consume)**합니다
-   - 여러 이터레이터가 동시에 활성화되면, 각 이터레이터는 **독립적으로** 메시지를 소비
-   - 같은 메시지를 여러 이터레이터가 받을 수 없음 (하나가 소비하면 다른 이터레이터는 받지 못함)
-   - **여러 페이지/컴포넌트에서 같은 메시지를 받아야 하는 경우에는 콜백을 사용해야 함**
-4. **학습 곡선**: async iterable에 대한 이해 필요
+1. **Memory Usage**: Buffering required when iterators are active
+2. **Initial Delay**: Messages before iterator starts are stored in buffer
+3. **Message Consumption Model**: Generators **consume** messages
+   - When multiple iterators are active simultaneously, each iterator **independently** consumes messages
+   - Multiple iterators cannot receive the same message (once one consumes it, others cannot receive it)
+   - **Use callbacks when multiple pages/components need to receive the same message**
+4. **Learning Curve**: Requires understanding of async iterables
 
-#### 추천 사용 시나리오
+#### Recommended Use Cases
 
-- **순차 처리**: 메시지를 순서대로 처리해야 하는 경우
-- **조건부 처리**: 특정 조건에 따라 메시지 처리 로직을 변경해야 하는 경우
-- **에러 복구**: 에러 발생 시 재시도나 복구 로직이 필요한 경우
-- **스트림 변환**: 메시지를 변환하거나 필터링하는 파이프라인 구축
-- **중단 가능한 작업**: 사용자 액션이나 특정 조건에서 수신을 중단해야 하는 경우
-- **복잡한 비즈니스 로직**: 여러 단계의 비동기 처리가 필요한 경우
+- **Sequential Processing**: When messages need to be processed in order
+- **Conditional Processing**: When message processing logic needs to change based on conditions
+- **Error Recovery**: When retry or recovery logic is needed on errors
+- **Stream Transformation**: Building pipelines to transform or filter messages
+- **Cancellable Tasks**: When reception needs to be stopped on user action or specific conditions
+- **Complex Business Logic**: When multiple stages of async processing are needed
 
-### 하이브리드 사용
+### Hybrid Usage
 
-두 API를 동시에 사용할 수 있습니다:
+Both APIs can be used simultaneously:
 
 ```typescript
 const socket = createSocket({ url: 'wss://example.com' });
 
-// 콜백: 모든 메시지 로깅
+// Callback: Log all messages
 socket.onMessage((msg) => console.log('Log:', msg));
 
-// 제너레이터: 특정 메시지만 처리
+// Generator: Process only specific messages
 for await (const msg of socket.messages()) {
   if (msg.type === 'important') {
     await processImportantMessage(msg);
@@ -414,137 +414,137 @@ for await (const msg of socket.messages()) {
 }
 ```
 
-### 성능 고려사항
+### Performance Considerations
 
-- **콜백만 사용**: 메모리 사용 최소화, 즉시 처리
-- **제너레이터만 사용**: 버퍼링으로 인한 메모리 사용, 순차 처리 가능
-- **하이브리드**: 콜백은 즉시 처리, 제너레이터는 버퍼에서 소비
+- **Callback Only**: Minimize memory usage, immediate processing
+- **Generator Only**: Memory usage due to buffering, sequential processing possible
+- **Hybrid**: Callbacks process immediately, generators consume from buffer
 
-### 선택 가이드
+### Selection Guide
 
-| 상황 | 추천 API |
-|------|----------|
-| 실시간 알림, 간단한 로깅 | 콜백 |
-| 순차 처리, 조건부 로직 | 제너레이터 |
-| 에러 복구, 재시도 로직 | 제너레이터 |
-| **다중 구독자 패턴** | **콜백** |
-| **여러 페이지/컴포넌트에서 같은 메시지 수신** | **콜백** |
-| 스트림 변환/필터링 | 제너레이터 |
-| 사용자 중단 가능한 작업 | 제너레이터 (AbortSignal) |
-| 메모리 제약이 큰 환경 | 콜백 (제너레이터 비활성화) |
+| Situation | Recommended API |
+|-----------|----------------|
+| Real-time notifications, simple logging | Callback |
+| Sequential processing, conditional logic | Generator |
+| Error recovery, retry logic | Generator |
+| **Multiple subscriber pattern** | **Callback** |
+| **Multiple pages/components receiving same message** | **Callback** |
+| Stream transformation/filtering | Generator |
+| User-cancellable tasks | Generator (AbortSignal) |
+| Memory-constrained environments | Callback (generators disabled) |
 
-### 여러 페이지에서 같은 이벤트 수신하기
+### Receiving Same Events Across Multiple Pages
 
-여러 페이지나 컴포넌트에서 **같은 메시지/이벤트를 모두 받아야 하는 경우**에는 **콜백 기반 API를 사용**해야 합니다.
+When **multiple pages or components need to receive the same message/event**, you **must use the callback-based API**.
 
-#### ❌ 제너레이터는 부적합
+#### ❌ Generators Are Not Suitable
 
 ```typescript
-// 페이지 A
+// Page A
 for await (const msg of socket.messages()) {
-  // 메시지를 소비 - 버퍼에서 제거됨
+  // Message is consumed - removed from buffer
   console.log('Page A:', msg);
 }
 
-// 페이지 B
+// Page B
 for await (const msg of socket.messages()) {
-  // 페이지 A가 이미 소비한 메시지는 받을 수 없음
-  console.log('Page B:', msg); // 일부 메시지를 놓칠 수 있음
+  // Cannot receive messages already consumed by Page A
+  console.log('Page B:', msg); // May miss some messages
 }
 ```
 
-제너레이터는 메시지를 **소비(consume)**하므로, 하나의 이터레이터가 메시지를 받으면 버퍼에서 제거되어 다른 이터레이터는 받을 수 없습니다.
+Generators **consume** messages, so when one iterator receives a message, it's removed from the buffer and other iterators cannot receive it.
 
-#### ✅ 콜백은 적합
+#### ✅ Callbacks Are Suitable
 
 ```typescript
-// 페이지 A
+// Page A
 socket.onMessage((msg) => {
   console.log('Page A:', msg);
-  // 메시지를 소비하지 않음 - 다른 핸들러도 받을 수 있음
+  // Message is not consumed - other handlers can also receive it
 });
 
-// 페이지 B
+// Page B
 socket.onMessage((msg) => {
   console.log('Page B:', msg);
-  // 같은 메시지를 받을 수 있음
+  // Can receive the same message
 });
 
-// 페이지 C
+// Page C
 socket.onMessage((msg) => {
   console.log('Page C:', msg);
-  // 모든 핸들러가 같은 메시지를 받음
+  // All handlers receive the same message
 });
 ```
 
-콜백은 메시지를 **소비하지 않고** 모든 등록된 핸들러에 **브로드캐스트**하므로, 여러 구독자가 같은 메시지를 받을 수 있습니다.
+Callbacks **do not consume** messages and **broadcast** to all registered handlers, so multiple subscribers can receive the same message.
 
-#### 실제 사용 예시
+#### Real-World Example
 
 ```typescript
-// 전역 소켓 인스턴스
+// Global socket instance
 const socket = createSocket({ url: 'wss://example.com' });
 
-// 컴포넌트 A: 알림 표시
+// Component A: Show notifications
 socket.onMessage((msg) => {
   if (msg.type === 'notification') {
     showNotification(msg);
   }
 });
 
-// 컴포넌트 B: 로깅
+// Component B: Logging
 socket.onMessage((msg) => {
   logger.log('Message received:', msg);
 });
 
-// 컴포넌트 C: 상태 업데이트
+// Component C: State update
 socket.onMessage((msg) => {
   updateState(msg);
 });
 
-// 모든 컴포넌트가 같은 메시지를 받음
+// All components receive the same message
 ```
 
 ---
 
-## 이벤트 시스템
+## Event System
 
-### 이벤트 타입
+### Event Types
 
 ```typescript
 type SocketEventType =
-  | 'open'        // 연결 열림
-  | 'close'       // 연결 닫힘
-  | 'error'       // 에러 발생
-  | 'reconnect'    // 재연결 시도
-  | 'received'    // 메시지 수신
-  | 'sent'        // 메시지 전송
-  | 'dropped';    // 메시지 드롭
+  | 'open'        // Connection opened
+  | 'close'       // Connection closed
+  | 'error'       // Error occurred
+  | 'reconnect'    // Reconnection attempt
+  | 'received'    // Message received
+  | 'sent'        // Message sent
+  | 'dropped';    // Message dropped
 ```
 
-### 이벤트 발생 흐름
+### Event Emission Flow
 
 ```
-이벤트 발생
+Event Occurs
     ↓
 EventHandler.emit()
     ↓
-    ├─→ eventCallbacks (즉시 호출)
-    ├─→ eventQueue (큐에 추가)
-    └─→ eventResolvers (대기 중인 이터레이터 깨우기)
+    ├─→ eventCallbacks (immediate call)
+    ├─→ eventQueue (add to queue)
+    └─→ eventResolvers (wake waiting iterators)
 ```
 
-### 이벤트 처리 방식
+### Event Processing Methods
 
-1. **콜백 방식**: `onEvent()`로 등록한 콜백 즉시 호출
-2. **스트림 방식**: `events()` 제너레이터로 이벤트 스트림 소비
-3. **하이브리드**: 두 방식을 동시에 사용 가능
+1. **Callback Method**: Callbacks registered with `onEvent()` are called immediately
+2. **Stream Method**: Consume event stream with `events()` generator
+3. **Hybrid**: Both methods can be used simultaneously
 
 ---
 
-## 제너레이터 기반 스트림
+## Generator-Based Streams
 
-### 메시지 스트림
+### Message Stream
 
 ```typescript
 async function* messagesGenerator(state, signal) {
@@ -552,17 +552,17 @@ async function* messagesGenerator(state, signal) {
   
   try {
     while (true) {
-      // 버퍼된 메시지 yield
+      // Yield buffered messages
       while (state.messageBuffer.length > 0) {
         yield parseMessage(state.messageBuffer.shift());
       }
       
-      // 새 메시지 대기
+      // Wait for new messages
       await waitForItems(...);
     }
   } finally {
     state.activeMessageIterators--;
-    // 마지막 이터레이터가 종료되면 버퍼 클리어
+    // Clear buffer when last iterator ends
     if (state.activeMessageIterators === 0) {
       state.messageBuffer = [];
     }
@@ -570,229 +570,229 @@ async function* messagesGenerator(state, signal) {
 }
 ```
 
-### 이벤트 기반 대기 메커니즘
+### Event-Based Waiting Mechanism
 
-`waitForItems()`는 효율적인 대기 메커니즘을 제공합니다:
+`waitForItems()` provides an efficient waiting mechanism:
 
-1. **즉시 확인**: 이미 아이템이 있으면 즉시 반환
-2. **이벤트 기반**: resolver를 등록하여 새 아이템 도착 시 즉시 알림
-3. **폴링 폴백**: AbortSignal이 없을 때만 100ms 간격으로 폴링
+1. **Immediate Check**: Returns immediately if items already exist
+2. **Event-Based**: Registers resolver to get immediate notification when new items arrive
+3. **Polling Fallback**: Polls at 100ms intervals only when AbortSignal is not available
 
-### 이터레이터 생명주기 관리
+### Iterator Lifecycle Management
 
-- `activeMessageIterators`: 활성 메시지 이터레이터 수 추적
-- `activeEventIterators`: 활성 이벤트 이터레이터 수 추적
-- 마지막 이터레이터 종료 시 버퍼/큐 자동 클리어 (메모리 누수 방지)
+- `activeMessageIterators`: Tracks number of active message iterators
+- `activeEventIterators`: Tracks number of active event iterators
+- Buffer/queue automatically cleared when last iterator ends (prevents memory leaks)
 
-### 이벤트 큐 메모리 관리
+### Event Queue Memory Management
 
-이벤트 큐는 메모리 누수를 방지하면서도 이터레이터 시작 전 이벤트를 받을 수 있도록 최적화되었습니다:
+The event queue is optimized to prevent memory leaks while allowing iterators to receive events that occurred before they started:
 
-- **이터레이터가 활성화된 경우**: 모든 이벤트를 큐에 추가하고 즉시 알림
-- **이터레이터가 없는 경우**: 최근 10개의 이벤트만 유지 (메모리 누수 방지)
-  - 새 이터레이터가 시작되면 최근 이벤트를 받을 수 있음
-  - 콜백만 사용하는 경우에도 무한 증가 방지
+- **When iterators are active**: All events are added to queue and notified immediately
+- **When no iterators**: Only the most recent 10 events are kept (prevents memory leaks)
+  - New iterators can receive recent events when they start
+  - Prevents infinite growth even when only callbacks are used
 
 ---
 
-## 재연결 메커니즘
+## Reconnection Mechanism
 
-### 재연결 전략
+### Reconnection Strategies
 
-1. **지수 백오프 (exponential)**: `interval * 2^attempt`
-2. **선형 백오프 (linear)**: `interval * (attempt + 1)`
-3. **지터 (jitter)**: ±20% 랜덤 변동 (thundering herd 방지)
+1. **Exponential Backoff**: `interval * 2^attempt`
+2. **Linear Backoff**: `interval * (attempt + 1)`
+3. **Jitter**: ±20% random variation (prevents thundering herd)
 
-### 재연결 흐름
+### Reconnection Flow
 
 ```
-연결 종료
+Connection Closed
     ↓
-onclose 이벤트
+onclose event
     ↓
-수동 종료가 아니고 재연결 활성화?
+Not manual close and reconnection enabled?
     ↓
 ConnectionHandler.scheduleReconnect()
     ↓
-간격 계산 (백오프 + 지터)
+Calculate interval (backoff + jitter)
     ↓
-타이머 설정
+Set timer
     ↓
-재연결 시도
+Reconnection attempt
     ↓
 ConnectionHandler.connect()
 ```
 
-### 재연결 제한
+### Reconnection Limits
 
-- `attempts`: 최대 재연결 시도 횟수 (기본값: Infinity)
-- `maxInterval`: 최대 재연결 간격 (기본값: 30000ms)
-
----
-
-## 버퍼 관리
-
-### 수신 버퍼 (messageBuffer)
-
-메시지 수신 시 버퍼링:
-
-- **조건**: `activeMessageIterators > 0`일 때만 버퍼링
-- **크기 제한**: `opts.buffer.receive.size` (기본값: 100)
-- **오버플로우 정책**:
-  - `oldest`: 가장 오래된 메시지 제거
-  - `newest`: 새 메시지 버림
-  - `error`: 에러 발생
-
-### 송신 큐 (messageQueue)
-
-연결이 닫혀있을 때 메시지 큐잉:
-
-- **크기 제한**: `opts.buffer.send.size` (기본값: 100)
-- **오버플로우 정책**: 수신 버퍼와 동일
-- **자동 플러시**: 연결 성공 시 자동으로 큐의 메시지 전송
-
-### 버퍼 생명주기
-
-- **메시지 버퍼**: 
-  - 이터레이터가 활성화된 경우에만 버퍼링
-  - 마지막 메시지 이터레이터 종료 시 클리어
-- **이벤트 큐**: 
-  - 이터레이터가 활성화된 경우: 모든 이벤트 큐에 추가
-  - 이터레이터가 없는 경우: 최근 10개만 유지 (메모리 누수 방지)
-  - 마지막 이벤트 이터레이터 종료 시 클리어
-- **메시지 큐**: 연결 종료 시 클리어
+- `attempts`: Maximum reconnection attempts (default: Infinity)
+- `maxInterval`: Maximum reconnection interval (default: 30000ms)
 
 ---
 
-## 데이터 흐름
+## Buffer Management
 
-### 메시지 수신 흐름
+### Receive Buffer (messageBuffer)
+
+Message buffering on receive:
+
+- **Condition**: Buffering only when `activeMessageIterators > 0`
+- **Size Limit**: `opts.buffer.receive.size` (default: 100)
+- **Overflow Policy**:
+  - `oldest`: Remove oldest message
+  - `newest`: Drop new message
+  - `error`: Throw error
+
+### Send Queue (messageQueue)
+
+Message queuing when connection is closed:
+
+- **Size Limit**: `opts.buffer.send.size` (default: 100)
+- **Overflow Policy**: Same as receive buffer
+- **Auto Flush**: Automatically sends queued messages when connection succeeds
+
+### Buffer Lifecycle
+
+- **Message Buffer**: 
+  - Buffering only when iterators are active
+  - Cleared when last message iterator ends
+- **Event Queue**: 
+  - When iterators are active: All events added to queue
+  - When no iterators: Only most recent 10 kept (prevents memory leaks)
+  - Cleared when last event iterator ends
+- **Message Queue**: Cleared on connection close
+
+---
+
+## Data Flow
+
+### Message Receive Flow
 
 ```
 WebSocket.onmessage
     ↓
-ConnectionHandler.connect() → onmessage 핸들러
+ConnectionHandler.connect() → onmessage handler
     ↓
 MessageHandler.receive(data)
     ↓
-    ├─→ JSON 파싱 시도
+    ├─→ Try JSON parsing
     ├─→ EventHandler.emit('received')
-    ├─→ handleCallbacks() → messageCallbacks 호출
-    └─→ bufferReceivedMessage() → messageBuffer에 추가 (이터레이터가 있을 때만)
+    ├─→ handleCallbacks() → messageCallbacks call
+    └─→ bufferReceivedMessage() → add to messageBuffer (only when iterators exist)
             ↓
-        messageResolvers 깨우기
+        Wake messageResolvers
             ↓
-        messagesGenerator에서 yield
+        yield in messagesGenerator
 ```
 
-### 메시지 송신 흐름
+### Message Send Flow
 
 ```
 send(data)
     ↓
 MessageHandler.send()
     ↓
-연결 상태 확인
+Check connection state
     ├─→ OPEN: handleSendImmediately()
     │       ↓
     │   EventHandler.emit('sent')
     │
-    └─→ 닫힘: queueSendMessage()
+    └─→ Closed: queueSendMessage()
             ↓
-        버퍼 오버플로우 체크
+        Buffer overflow check
             ↓
-        오버플로우 시 정책에 따라 처리
+        Handle according to overflow policy
 ```
 
-### 이벤트 흐름
+### Event Flow
 
 ```
-상태 변화 발생
+State Change Occurs
     ↓
 EventHandler.emit(event)
     ↓
-    ├─→ eventCallbacks 즉시 호출
-    ├─→ eventQueue에 추가
-    └─→ eventResolvers 깨우기
+    ├─→ eventCallbacks immediate call
+    ├─→ Add to eventQueue
+    └─→ Wake eventResolvers
             ↓
-        eventsGenerator에서 yield
+        yield in eventsGenerator
 ```
 
 ---
 
-## 설계 결정 사항
+## Design Decisions
 
-### 왜 클래스를 선택했는가?
+### Why Classes?
 
-1. **가독성 향상**: Public 메서드를 상단에 배치하여 인터페이스를 빠르게 파악 가능
-2. **명확한 책임 분리**: 각 클래스가 단일 책임을 가짐
-3. **유지보수성**: 각 클래스를 독립적으로 수정 및 테스트 가능
-4. **타입 안정성**: 제네릭 타입을 명확하게 전달
-5. **코드 구조**: Public/Private 메서드 분리로 구조 명확화
+1. **Improved Readability**: Public methods at top for quick interface understanding
+2. **Clear Separation of Concerns**: Each class has a single responsibility
+3. **Maintainability**: Each class can be modified and tested independently
+4. **Type Safety**: Generic types are clearly passed
+5. **Code Structure**: Public/Private method separation clarifies structure
 
-### 메서드 분리 전략
+### Method Separation Strategy
 
-**receive 메서드 분리:**
-- `handleCallbacks`: 콜백 호출 로직
-- `bufferReceivedMessage`: 버퍼링 로직
-- `receive`: 위 두 메서드를 조합
+**receive Method Separation:**
+- `handleCallbacks`: Callback invocation logic
+- `bufferReceivedMessage`: Buffering logic
+- `receive`: Combines the above two methods
 
-**send 메서드 분리:**
-- `handleSendImmediately`: 즉시 전송 로직
-- `queueSendMessage`: 큐잉 로직
-- `send`: 위 두 메서드를 조합
+**send Method Separation:**
+- `handleSendImmediately`: Immediate send logic
+- `queueSendMessage`: Queuing logic
+- `send`: Combines the above two methods
 
-**일관된 네이밍 패턴:**
-- `handle*`: 처리 로직 (handleCallbacks, handleSendImmediately)
-- `buffer*/queue*`: 버퍼/큐 관련 (bufferReceivedMessage, queueSendMessage)
+**Consistent Naming Pattern:**
+- `handle*`: Processing logic (handleCallbacks, handleSendImmediately)
+- `buffer*/queue*`: Buffer/queue related (bufferReceivedMessage, queueSendMessage)
 
-### 왜 순수 함수로 만들지 않았는가?
+### Why Not Pure Functions?
 
-1. **상태 변경 필수**: WebSocket 연결, 타이머, 버퍼 조작 등
-2. **부수 효과**: 이벤트 발생, 네트워크 통신 등이 핵심 기능
-3. **실용성**: 순수 함수로 만들면 코드가 과도하게 복잡해짐
-
----
-
-## 확장성 고려사항
-
-### 현재 구조의 장점
-
-- **모듈화**: 각 클래스가 명확한 책임을 가짐
-- **타입 안정성**: TypeScript로 완전한 타입 체크
-- **테스트 용이성**: 각 클래스를 독립적으로 테스트 가능
-- **가독성**: Public/Private 메서드 분리로 구조 명확화
-
-### 향후 개선 가능 영역
-
-- **플러그인 시스템**: 재연결 전략, 버퍼 정책 등을 플러그인으로 확장
-- **로깅 시스템**: 이벤트 기반 로깅 시스템 통합
-- **메트릭 수집**: 연결 상태, 메시지 처리량 등 메트릭 수집
+1. **State Changes Required**: WebSocket connections, timers, buffer manipulation, etc.
+2. **Side Effects**: Event emission, network communication are core features
+3. **Practicality**: Making it pure functions would make the code overly complex
 
 ---
 
-## 성능 고려사항
+## Extensibility Considerations
 
-### 메모리 관리
+### Current Structure Advantages
 
-- **메시지 버퍼**: 이터레이터가 활성화된 경우에만 버퍼링 (메모리 누수 방지)
-- **이벤트 큐**: 
-  - 이터레이터가 활성화된 경우: 모든 이벤트 큐에 추가
-  - 이터레이터가 없는 경우: 최근 10개만 유지 (무한 증가 방지)
-  - 이터레이터 종료 시: 큐 자동 클리어
-- **콜백 관리**: Set을 통한 효율적인 콜백 추가/제거
-- **리소스 정리**: 연결 종료 시 타이머, 큐 등 모든 리소스 정리
+- **Modularity**: Each class has clear responsibilities
+- **Type Safety**: Complete type checking with TypeScript
+- **Testability**: Each class can be tested independently
+- **Readability**: Public/Private method separation clarifies structure
 
-### 네트워크 효율성
+### Future Improvement Areas
 
-- 연결이 열릴 때까지 메시지 큐잉
-- 버퍼 오버플로우 정책으로 메모리 사용량 제어
-- 재연결 시 지터를 통한 서버 부하 분산
+- **Plugin System**: Extend reconnection strategies, buffer policies as plugins
+- **Logging System**: Integrate event-based logging system
+- **Metrics Collection**: Collect connection status, message throughput, etc.
 
 ---
 
-## 결론
+## Performance Considerations
 
-purrcat의 아키텍처는 **클래스 기반 구조**, **이벤트 중심 설계**, **제너레이터 기반 스트림**을 핵심으로 합니다. 가독성과 유지보수성을 향상시키기 위해 클래스 기반 구조를 채택했으며, 각 클래스가 명확한 책임을 가지도록 설계했습니다. Public 메서드를 상단에, Private 메서드를 하단에 배치하여 코드 구조를 명확하게 하였고, 메서드 분리와 일관된 네이밍 패턴을 통해 코드의 가독성을 크게 향상시켰습니다.
+### Memory Management
 
-또한, **콜백과 제너레이터 두 가지 API를 모두 지원**하여 다양한 사용 시나리오에 대응할 수 있도록 설계했습니다. 콜백은 다중 구독자 패턴과 브로드캐스트에 적합하고, 제너레이터는 순차 처리와 복잡한 제어 흐름에 적합합니다. 개발자는 프로젝트의 요구사항에 따라 적절한 API를 선택할 수 있습니다.
+- **Message Buffer**: Buffering only when iterators are active (prevents memory leaks)
+- **Event Queue**: 
+  - When iterators are active: All events added to queue
+  - When no iterators: Only most recent 10 kept (prevents infinite growth)
+  - When iterators end: Queue automatically cleared
+- **Callback Management**: Efficient callback add/remove using Set
+- **Resource Cleanup**: All resources (timers, queues, etc.) cleaned up on connection close
+
+### Network Efficiency
+
+- Message queuing until connection opens
+- Memory usage control through buffer overflow policies
+- Server load distribution through jitter on reconnection
+
+---
+
+## Conclusion
+
+purrcat's architecture is centered around **class-based structure**, **event-driven design**, and **generator-based streams**. We adopted a class-based structure to improve readability and maintainability, with each class designed to have clear responsibilities. We clarified the code structure by placing public methods at the top and private methods at the bottom, and significantly improved code readability through method separation and consistent naming patterns.
+
+Additionally, we designed the library to **support both callback and generator APIs** to handle diverse use cases. Callbacks are suitable for multiple subscriber patterns and broadcasting, while generators are suitable for sequential processing and complex control flow. Developers can choose the appropriate API based on their project requirements.
