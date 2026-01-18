@@ -1,5 +1,21 @@
 import { vi } from 'vitest';
 
+// Mock CloseEvent for Node.js test environment
+if (typeof globalThis.CloseEvent === 'undefined') {
+  // @ts-ignore - provide minimal CloseEvent implementation for tests
+  globalThis.CloseEvent = class extends Event {
+    code: number;
+    reason: string;
+    wasClean: boolean;
+    constructor(type: string, props?: { code?: number; reason?: string; wasClean?: boolean }) {
+      super(type);
+      this.code = props?.code ?? 1000;
+      this.reason = props?.reason ?? '';
+      this.wasClean = props?.wasClean ?? true;
+    }
+  };
+}
+
 // Helper class for mocking WebSocket
 export class MockWebSocket {
   static CONNECTING = 0;
