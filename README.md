@@ -44,7 +44,7 @@ Learn about purrcat's internal architecture, design decisions, and how to choose
 - **Bounded message buffer** with configurable overflow policies
 - **Generator-based streams** for async iteration
 - **TypeScript** support
-- **Browser & Node.js** compatible (Node.js 18+ required for native WebSocket)
+- **Browser & Node.js** compatible (Node.js 20+ required for native WebSocket)
 - **Zero dependencies** (uses native WebSocket API)
 - **Tiny bundle size**
 - **AbortSignal** support for stream cancellation
@@ -89,7 +89,7 @@ npm install purrcat
 **Runtime (when using the library):**
 
 - **Browser**: Modern browsers with WebSocket support
-- **Node.js**: 18.0.0 or higher (uses native WebSocket API)
+- **Node.js**: 20.0.0 or higher (uses native WebSocket API)
 
 **Development:**
 

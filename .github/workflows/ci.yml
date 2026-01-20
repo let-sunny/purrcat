@@ -12,10 +12,10 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 24.x, 25.x]
-        # 18.x: minimum supported version (engines: ">=18.0.0")
+        node-version: [20.x, 22.x, 24.x]
+        # 20.x: minimum supported version (engines: ">=20.0.0")
+        # 22.x: stable native WebSocket API support
         # 24.x: current LTS
-        # 25.x: latest version
 
     steps:
       - name: Checkout code
