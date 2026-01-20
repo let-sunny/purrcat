@@ -716,5 +716,86 @@ describe('AbortSignal Integration', () => {
 
       socket.close();
     });
+
+    it('should execute polling fallback when items become available during polling', async () => {
+      const socket = createSocket({ url: 'ws://test.com' });
+      await vi.runAllTimersAsync();
+      const ws = createdWebSockets[0];
+
+      let pollSetTimeoutCalled = false;
+      let pollCallbackExecuted = false;
+      const originalSetTimeout = global.setTimeout;
+      global.setTimeout = vi.fn((callback: () => void, delay?: number, ...args: unknown[]) => {
+        // Verify that polling setTimeout is called (covers lines 294-297 in utils.ts)
+        if (delay === 100) {
+          // POLLING_INTERVAL_MS is 100
+          pollSetTimeoutCalled = true;
+          // Wrap callback to track execution
+          return originalSetTimeout(
+            () => {
+              pollCallbackExecuted = true;
+              callback();
+            },
+            delay,
+            ...args
+          );
+        }
+        return originalSetTimeout(callback, delay, ...args);
+      }) as unknown as typeof setTimeout;
+
+      const messagePromise = (async () => {
+        for await (const msg of socket.messages()) {
+          expect(msg).toBe('test');
+          break;
+        }
+      })();
+
+      // Start generator without message (will trigger polling fallback)
+      vi.advanceTimersByTime(50);
+
+      // Send message after polling has started - this should trigger hasItems() check in poll
+      // Wait a bit to ensure polling has started
+      vi.advanceTimersByTime(150);
+      ws.simulateMessage('test');
+      await vi.runAllTimersAsync();
+
+      await messagePromise;
+
+      // Restore original
+      global.setTimeout = originalSetTimeout;
+
+      // Polling setTimeout should have been called (covers lines 294-297 in utils.ts)
+      expect(pollSetTimeoutCalled).toBe(true);
+      // Poll callback should execute and check hasItems() (covers lines 293-295 in utils.ts)
+      expect(pollCallbackExecuted).toBe(true);
+
+      socket.close();
+    });
+
+    it('should resolve immediately when items are already available', async () => {
+      const socket = createSocket({ url: 'ws://test.com' });
+      await vi.runAllTimersAsync();
+      const ws = createdWebSockets[0];
+
+      // Start generator first to enable buffering
+      const controller = new AbortController();
+      const messagePromise = (async () => {
+        for await (const msg of socket.messages({ signal: controller.signal })) {
+          expect(msg).toBe('test');
+          controller.abort();
+          break;
+        }
+      })();
+
+      // Let generator start
+      vi.advanceTimersByTime(20);
+
+      // Send message - should be buffered and immediately available (covers lines 281-283 in utils.ts)
+      ws.simulateMessage('test');
+      await vi.runAllTimersAsync();
+      await messagePromise;
+
+      socket.close();
+    });
   });
 });

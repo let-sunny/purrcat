@@ -109,6 +109,26 @@ describe('ConnectionHandler', () => {
       expect(flushSpy).toHaveBeenCalled();
     });
 
+    it('should handle non-string message data', async () => {
+      const receiveSpy = vi.spyOn(messageHandler, 'receive');
+
+      handler.connect();
+      await vi.runAllTimersAsync();
+
+      const ws = createdWebSockets[0];
+      // Simulate message with non-string data (ArrayBuffer, Blob, etc.)
+      const mockEvent = {
+        data: new ArrayBuffer(8),
+      } as MessageEvent;
+      ws.onmessage?.(mockEvent);
+      await vi.runAllTimersAsync();
+
+      // Should convert to string and call receive (covers line 68)
+      expect(receiveSpy).toHaveBeenCalled();
+      const receivedData = receiveSpy.mock.calls[0][0];
+      expect(typeof receivedData).toBe('string');
+    });
+
     it('should emit error event on WebSocket error', async () => {
       const eventCallback = vi.fn();
       state.eventCallbacks.add(eventCallback);
@@ -197,6 +217,14 @@ describe('ConnectionHandler', () => {
       await vi.runAllTimersAsync();
 
       expect(ws.readyState).toBe(MockWebSocket.CLOSED);
+      // Should clear ws reference (covers line 106-108)
+      expect(state.ws).toBeNull();
+    });
+
+    it('should handle close when ws is null', () => {
+      state.ws = null;
+      // Should not throw error (covers line 106)
+      expect(() => handler.close()).not.toThrow();
     });
 
     it('should set isManualClose flag', async () => {
@@ -302,6 +330,28 @@ describe('ConnectionHandler', () => {
 
       // Should stop after max attempts
       expect(state.reconnectCount).toBeLessThanOrEqual(2);
+    });
+
+    it('should not schedule reconnect when max attempts reached', () => {
+      opts.reconnect.enabled = true;
+      opts.reconnect.attempts = 3;
+      opts.reconnect.interval = 100;
+      state.reconnectCount = 3; // Already at max attempts
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
+
+      const eventCallback = vi.fn();
+      state.eventCallbacks.add(eventCallback);
+
+      // scheduleReconnect should return early without scheduling
+      handler.scheduleReconnect();
+
+      // Should not have a reconnect timer
+      expect(state.reconnectTimer).toBeNull();
+      // Should not emit reconnect event
+      const reconnectEvents = eventCallback.mock.calls.filter(
+        call => call[0]?.type === 'reconnect'
+      );
+      expect(reconnectEvents.length).toBe(0);
     });
 
     it('should emit reconnect event', async () => {

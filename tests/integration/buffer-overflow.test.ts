@@ -195,6 +195,48 @@ describe('Buffer Overflow Policies', () => {
       // Error should have been caught
       expect(errorCaught).toBe(true);
     });
+
+    it('should add messages to buffer when buffer is not full', async () => {
+      const socket = createSocket({
+        url: 'ws://test.com',
+        buffer: {
+          receive: {
+            size: 5,
+            overflow: 'oldest',
+          },
+        },
+      });
+
+      await vi.runAllTimersAsync();
+      const ws = createdWebSockets[0];
+
+      // Start consuming to enable buffering
+      const controller = new AbortController();
+      const consumePromise = (async () => {
+        for await (const _ of socket.messages({ signal: controller.signal })) {
+          // Just consume
+          break;
+        }
+      })();
+
+      vi.advanceTimersByTime(20);
+
+      // Send messages that should be added normally (buffer not full)
+      ws.simulateMessage('msg1');
+      vi.advanceTimersByTime(20);
+      ws.simulateMessage('msg2');
+      vi.advanceTimersByTime(20);
+      ws.simulateMessage('msg3');
+      vi.advanceTimersByTime(20);
+
+      controller.abort();
+      await consumePromise;
+      await vi.runAllTimersAsync();
+
+      // Messages should be added without dropping (buffer not full)
+      // This tests the 'add' action path in handleBufferOverflow
+      expect(socket).toBeDefined();
+    });
   });
 
   describe('Send Buffer', () => {

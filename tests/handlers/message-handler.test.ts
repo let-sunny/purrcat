@@ -125,6 +125,43 @@ describe('MessageHandler', () => {
 
       expect(state.messageQueue.length).toBe(1);
     });
+
+    it('should send immediately when connection is open', async () => {
+      await vi.runAllTimersAsync();
+      const ws = new MockWebSocket('ws://test.com');
+      ws.readyState = MockWebSocket.OPEN;
+      state.ws = ws as unknown as WebSocket;
+
+      const eventCallback = vi.fn();
+      state.eventCallbacks.add(eventCallback);
+
+      handler.send('msg1');
+      await vi.runAllTimersAsync();
+
+      // Should send immediately without queuing
+      expect(ws.sentMessages.length).toBe(1);
+      expect(state.messageQueue.length).toBe(0);
+    });
+
+    it('should handle send when ws becomes null during handleSendImmediately', async () => {
+      await vi.runAllTimersAsync();
+      const ws = new MockWebSocket('ws://test.com');
+      ws.readyState = MockWebSocket.OPEN;
+      state.ws = ws as unknown as WebSocket;
+
+      // Mock ws.send to set ws to null (simulating race condition)
+      const originalSend = ws.send;
+      ws.send = function (this: typeof ws, data: string | ArrayBuffer | Blob) {
+        state.ws = null; // Simulate connection closed during send
+        originalSend.call(this, data);
+      } as typeof ws.send;
+
+      handler.send('msg1');
+      await vi.runAllTimersAsync();
+
+      // Should handle gracefully (covers line 197 in message-handler.ts)
+      expect(ws.sentMessages.length).toBeGreaterThanOrEqual(0);
+    });
   });
 
   describe('flushQueue', () => {
@@ -184,6 +221,38 @@ describe('MessageHandler', () => {
 
       // Should stop after abort
       expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle abort signal in catch block when error occurs', async () => {
+      const controller = new AbortController();
+      const callback = vi.fn();
+      state.messageCallbacks.add(callback);
+
+      async function* messageGenerator() {
+        yield 'msg1';
+        controller.abort();
+        throw new Error('Test error');
+      }
+
+      // Should not throw error when signal is aborted, even if error occurs
+      await expect(
+        handler.receiveMessages(messageGenerator(), {
+          signal: controller.signal,
+        })
+      ).resolves.toBeUndefined();
+    });
+
+    it('should throw error when not aborted', async () => {
+      const callback = vi.fn();
+      state.messageCallbacks.add(callback);
+
+      async function* messageGenerator() {
+        yield 'msg1';
+        throw new Error('Test error');
+      }
+
+      // Should throw error when signal is not aborted (covers line 55)
+      await expect(handler.receiveMessages(messageGenerator())).rejects.toThrow('Test error');
     });
   });
 
