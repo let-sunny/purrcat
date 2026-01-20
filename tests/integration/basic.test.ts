@@ -1,8 +1,8 @@
 /**
  * basic.test.ts
- * 
+ *
  * Purpose: Integration tests for Socket instance creation, lifecycle management, and SocketOptions
- * 
+ *
  * Test Coverage:
  * - Socket instance creation and API existence verification
  * - Auto-connection (based on reconnect option)
@@ -10,7 +10,7 @@
  * - close() cleanup logic (abortController, reconnectTimer)
  * - SocketOptions (protocols)
  * - send() method (basic behavior, ArrayBuffer, Blob)
- * 
+ *
  * Boundaries:
  * - Event-based/generator-based APIs are tested in their dedicated test files
  * - Reconnection logic is tested in reconnection.test.ts
@@ -20,6 +20,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import createSocket from '../../src/index.js';
+import type { SocketEvent } from '../../src/types.js';
 import {
   setupWebSocketMock,
   cleanupWebSocketMock,
@@ -54,7 +55,7 @@ describe('Basic Functionality', () => {
   });
 
   it('should connect automatically when reconnect is enabled', async () => {
-    const socket = createSocket({
+    const _socket = createSocket({
       url: 'ws://test.com',
       reconnect: true,
     });
@@ -109,7 +110,7 @@ describe('Basic Functionality', () => {
   });
 
   it('should handle protocols option (single)', async () => {
-    const socket = createSocket({
+    const _socket = createSocket({
       url: 'ws://test.com',
       protocols: 'chat',
     });
@@ -121,7 +122,7 @@ describe('Basic Functionality', () => {
   });
 
   it('should handle protocols option (multiple)', async () => {
-    const socket = createSocket({
+    const _socket = createSocket({
       url: 'ws://test.com',
       protocols: ['chat', 'json'],
     });
@@ -240,7 +241,7 @@ describe('Basic Functionality', () => {
     const originalWebSocket = global.WebSocket;
     global.WebSocket = vi.fn(() => {
       throw new Error('WebSocket construction failed');
-    }) as any;
+    }) as unknown as typeof WebSocket;
 
     const socket = createSocket({
       url: 'ws://test.com',
@@ -251,8 +252,8 @@ describe('Basic Functionality', () => {
       },
     });
 
-    const errorEvents: any[] = [];
-    socket.onEvent((event) => {
+    const errorEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'error') {
         errorEvents.push(event);
       }
@@ -267,13 +268,12 @@ describe('Basic Functionality', () => {
     global.WebSocket = originalWebSocket;
   });
 
-
   it('should cleanup abortController when closing with active generator', async () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
     const controller = new AbortController();
-    
+
     // Start generator to create abortController in state
     const messagePromise = (async () => {
       for await (const _ of socket.messages({ signal: controller.signal })) {
@@ -282,7 +282,7 @@ describe('Basic Functionality', () => {
     })();
 
     vi.advanceTimersByTime(20);
-    
+
     // Close should cleanup abortController
     socket.close();
     await vi.runAllTimersAsync();

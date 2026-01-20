@@ -18,15 +18,12 @@ import {
 
 /**
  * Create a socket event object with timestamp
- * 
+ *
  * @param type - The type of socket event
  * @param meta - Optional metadata to attach to the event
  * @returns SocketEvent object with type, timestamp, and optional metadata
  */
-export function createEvent(
-  type: SocketEventType,
-  meta?: Record<string, any>
-): SocketEvent {
+export function createEvent(type: SocketEventType, meta?: Record<string, unknown>): SocketEvent {
   return {
     type,
     ts: Date.now(),
@@ -36,7 +33,7 @@ export function createEvent(
 
 /**
  * Calculate reconnect interval with backoff strategy and jitter
- * 
+ *
  * @param attempt - Current reconnect attempt number (0-based)
  * @param baseInterval - Base interval in milliseconds
  * @param backoff - Backoff strategy: 'exponential' or 'linear'
@@ -66,10 +63,10 @@ export function calculateReconnectInterval(
 
 /**
  * Normalize socket options with default values
- * 
+ *
  * Converts user-provided options to a normalized format with all required fields
  * filled in with defaults. Handles boolean reconnect option and partial configs.
- * 
+ *
  * @param options - User-provided socket options
  * @returns Normalized options with all fields required and defaults applied
  */
@@ -79,7 +76,7 @@ export function normalizeOptions(options: SocketOptions): NormalizedSocketOption
   const reconnectConfig: ReconnectConfig =
     typeof reconnectOption === 'boolean'
       ? { enabled: reconnectOption }
-      : reconnectOption ?? { enabled: true };
+      : (reconnectOption ?? { enabled: true });
 
   return {
     reconnect: {
@@ -106,7 +103,7 @@ export function normalizeOptions(options: SocketOptions): NormalizedSocketOption
 
 /**
  * Create initial socket state with all fields initialized to default values
- * 
+ *
  * @returns New InternalSocketState instance with all fields initialized
  */
 export function createState<Incoming = string>(): InternalSocketState<Incoming> {
@@ -130,10 +127,10 @@ export function createState<Incoming = string>(): InternalSocketState<Incoming> 
 
 /**
  * Parse message data, attempting JSON parse first, falling back to string
- * 
+ *
  * Tries to parse the input as JSON. If parsing fails, returns the string as-is.
  * This allows the function to work with both JSON and plain string messages.
- * 
+ *
  * @param data - Raw message data as string
  * @returns Parsed message (JSON object/array if valid JSON, otherwise string)
  */
@@ -148,20 +145,14 @@ export function parseMessage<Incoming>(data: string): Incoming {
 
 /**
  * Serialize outgoing message data to string, ArrayBuffer, or Blob
- * 
+ *
  * Converts objects to JSON strings, leaves other types as-is.
- * 
+ *
  * @param data - Outgoing message data
  * @returns Serialized message ready for WebSocket.send()
  */
-export function serializeMessage<Outgoing>(
-  data: Outgoing
-): string | ArrayBuffer | Blob {
-  if (
-    typeof data === 'object' &&
-    !(data instanceof ArrayBuffer) &&
-    !(data instanceof Blob)
-  ) {
+export function serializeMessage<Outgoing>(data: Outgoing): string | ArrayBuffer | Blob {
+  if (typeof data === 'object' && !(data instanceof ArrayBuffer) && !(data instanceof Blob)) {
     return JSON.stringify(data);
   }
   return data as string | ArrayBuffer | Blob;
@@ -169,7 +160,7 @@ export function serializeMessage<Outgoing>(
 
 /**
  * Handle buffer overflow according to policy
- * 
+ *
  * @param policy - Overflow policy: 'oldest', 'newest', or 'error'
  * @param buffer - The buffer array
  * @param newItem - New item to potentially add
@@ -182,7 +173,7 @@ export function handleBufferOverflow<T>(
   buffer: T[],
   newItem: T,
   bufferSize: number,
-  bufferType: 'receive' | 'send'
+  _bufferType: 'receive' | 'send'
 ): {
   action: 'drop_oldest' | 'drop_newest' | 'error' | 'add';
   dropped?: T;
@@ -206,7 +197,7 @@ export function handleBufferOverflow<T>(
 
 /**
  * Create a dropped event for buffer overflow
- * 
+ *
  * @param reason - Reason for dropping ('buffer_full' | 'buffer_overflow' | 'send_queue_full' | 'send_queue_overflow')
  * @param policy - Overflow policy that was applied
  * @param droppedMessage - The message that was dropped
@@ -232,10 +223,10 @@ export function createDroppedEvent(
 
 /**
  * Wait for new items using event-based notification with polling fallback
- * 
+ *
  * This utility function provides an efficient way to wait for items to become available
  * in a collection. It uses event-based notification when possible, with polling as a fallback.
- * 
+ *
  * @param signal - Optional AbortSignal to cancel the wait
  * @param hasItems - Function to check if items are available
  * @param resolvers - Set of resolver functions for event-based notification
@@ -243,14 +234,14 @@ export function createDroppedEvent(
  * @param removeResolver - Function to remove a resolver from the set
  * @returns Promise that resolves when items become available or signal is aborted
  */
-export function waitForItems<T>(
+export function waitForItems(
   signal: AbortSignal | undefined,
   hasItems: () => boolean,
   resolvers: Set<() => void>,
   addResolver: (resolve: () => void) => void,
   removeResolver: (resolve: () => void) => void
 ): Promise<void> {
-  return new Promise<void>((resolve) => {
+  return new Promise<void>(resolve => {
     let checkInterval: ReturnType<typeof setTimeout> | null = null;
     let resolved = false;
 
@@ -303,7 +294,7 @@ export function waitForItems<T>(
           doResolve();
           return;
         }
-        checkInterval = setTimeout(poll, POLLING_INTERVAL_MS) as any;
+        checkInterval = setTimeout(poll, POLLING_INTERVAL_MS) as ReturnType<typeof setTimeout>;
       };
       poll();
     }

@@ -1,8 +1,8 @@
 /**
  * connection-handler.test.ts
- * 
+ *
  * Purpose: Unit tests for ConnectionHandler class
- * 
+ *
  * Test Coverage:
  * - WebSocket connection creation
  * - Connection lifecycle (open, close, error)
@@ -11,7 +11,7 @@
  * - Manual close vs automatic close
  * - AbortController cleanup
  * - Event emission for connection events
- * 
+ *
  * Boundaries:
  * - Integration tests for reconnection logic are in integration/reconnection.test.ts
  * - Integration tests for connection API are in integration/basic.test.ts
@@ -43,17 +43,8 @@ describe('ConnectionHandler', () => {
     state = createState<string>();
     eventHandler = new EventHandler<string>(state);
     opts = normalizeOptions({ url: 'ws://test.com' });
-    messageHandler = new MessageHandler<string, string>(
-      state,
-      opts,
-      eventHandler
-    );
-    handler = new ConnectionHandler<string, string>(
-      state,
-      opts,
-      eventHandler,
-      messageHandler
-    );
+    messageHandler = new MessageHandler<string, string>(state, opts, eventHandler);
+    handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
   });
 
   afterEach(() => {
@@ -75,12 +66,7 @@ describe('ConnectionHandler', () => {
         url: 'ws://test.com',
         protocols: ['chat', 'json'],
       });
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       handler.connect();
       await vi.runAllTimersAsync();
@@ -121,6 +107,26 @@ describe('ConnectionHandler', () => {
       await vi.runAllTimersAsync();
 
       expect(flushSpy).toHaveBeenCalled();
+    });
+
+    it('should handle non-string message data', async () => {
+      const receiveSpy = vi.spyOn(messageHandler, 'receive');
+
+      handler.connect();
+      await vi.runAllTimersAsync();
+
+      const ws = createdWebSockets[0];
+      // Simulate message with non-string data (ArrayBuffer, Blob, etc.)
+      const mockEvent = {
+        data: new ArrayBuffer(8),
+      } as MessageEvent;
+      ws.onmessage?.(mockEvent);
+      await vi.runAllTimersAsync();
+
+      // Should convert to string and call receive (covers line 68)
+      expect(receiveSpy).toHaveBeenCalled();
+      const receivedData = receiveSpy.mock.calls[0][0];
+      expect(typeof receivedData).toBe('string');
     });
 
     it('should emit error event on WebSocket error', async () => {
@@ -179,16 +185,11 @@ describe('ConnectionHandler', () => {
       const originalWebSocket = global.WebSocket;
       global.WebSocket = vi.fn(() => {
         throw new Error('WebSocket construction failed');
-      }) as any;
+      }) as unknown as typeof WebSocket;
 
       // Disable reconnect to prevent infinite loop
       opts.reconnect.enabled = false;
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       const eventCallback = vi.fn();
       state.eventCallbacks.add(eventCallback);
@@ -216,6 +217,14 @@ describe('ConnectionHandler', () => {
       await vi.runAllTimersAsync();
 
       expect(ws.readyState).toBe(MockWebSocket.CLOSED);
+      // Should clear ws reference (covers line 106-108)
+      expect(state.ws).toBeNull();
+    });
+
+    it('should handle close when ws is null', () => {
+      state.ws = null;
+      // Should not throw error (covers line 106)
+      expect(() => handler.close()).not.toThrow();
     });
 
     it('should set isManualClose flag', async () => {
@@ -274,12 +283,7 @@ describe('ConnectionHandler', () => {
       opts.reconnect.enabled = true;
       opts.reconnect.attempts = 3;
       opts.reconnect.interval = 100;
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       handler.connect();
       await vi.runAllTimersAsync();
@@ -294,12 +298,7 @@ describe('ConnectionHandler', () => {
 
     it('should not reconnect when manually closed', async () => {
       opts.reconnect.enabled = true;
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       handler.connect();
       await vi.runAllTimersAsync();
@@ -315,12 +314,7 @@ describe('ConnectionHandler', () => {
       opts.reconnect.enabled = true;
       opts.reconnect.attempts = 2;
       opts.reconnect.interval = 100;
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       handler.connect();
       await vi.runAllTimersAsync();
@@ -338,15 +332,32 @@ describe('ConnectionHandler', () => {
       expect(state.reconnectCount).toBeLessThanOrEqual(2);
     });
 
+    it('should not schedule reconnect when max attempts reached', () => {
+      opts.reconnect.enabled = true;
+      opts.reconnect.attempts = 3;
+      opts.reconnect.interval = 100;
+      state.reconnectCount = 3; // Already at max attempts
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
+
+      const eventCallback = vi.fn();
+      state.eventCallbacks.add(eventCallback);
+
+      // scheduleReconnect should return early without scheduling
+      handler.scheduleReconnect();
+
+      // Should not have a reconnect timer
+      expect(state.reconnectTimer).toBeNull();
+      // Should not emit reconnect event
+      const reconnectEvents = eventCallback.mock.calls.filter(
+        call => call[0]?.type === 'reconnect'
+      );
+      expect(reconnectEvents.length).toBe(0);
+    });
+
     it('should emit reconnect event', async () => {
       opts.reconnect.enabled = true;
       opts.reconnect.interval = 100;
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       const eventCallback = vi.fn();
       state.eventCallbacks.add(eventCallback);

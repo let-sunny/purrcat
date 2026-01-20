@@ -1,15 +1,15 @@
 /**
  * api-generators.test.ts
- * 
+ *
  * Purpose: Integration tests for generator-based API (messages(), events(), sendMessages()) basic behavior
- * 
+ *
  * Test Coverage:
  * - Message reception via messages() generator
  * - Event reception via events() generator
  * - Sending multiple messages via sendMessages()
  * - Buffer clearing logic (when no active iterators)
  * - Buffering behavior (messages are not buffered when no active iterators)
- * 
+ *
  * Boundaries:
  * - AbortSignal integration is tested in detail in abort-signal.test.ts
  * - Buffer overflow is tested in buffer-overflow.test.ts
@@ -19,11 +19,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import createSocket from '../../src/index.js';
-import {
-  setupWebSocketMock,
-  cleanupWebSocketMock,
-  createdWebSockets,
-} from '../helpers.js';
+import type { SocketEvent } from '../../src/types.js';
+import { setupWebSocketMock, cleanupWebSocketMock, createdWebSockets } from '../helpers.js';
 
 describe('Generator-Based API (Async Iterables)', () => {
   beforeEach(() => {
@@ -83,18 +80,18 @@ describe('Generator-Based API (Async Iterables)', () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
-    const events: any[] = [];
+    const events: SocketEvent[] = [];
     const eventPromise = (async () => {
       for await (const event of socket.events()) {
         events.push(event);
-        if (events.some((e) => e.type === 'open')) break;
+        if (events.some(e => e.type === 'open')) break;
       }
     })();
 
     await vi.runAllTimersAsync();
     await eventPromise;
 
-    expect(events.some((e) => e.type === 'open')).toBe(true);
+    expect(events.some(e => e.type === 'open')).toBe(true);
   });
 
   it('should clear message buffer when no active iterators', async () => {
@@ -181,7 +178,7 @@ describe('Generator-Based API (Async Iterables)', () => {
 
     // Messages should be received via callbacks, not buffered
     const messages: string[] = [];
-    socket.onMessage((msg) => {
+    socket.onMessage(msg => {
       messages.push(msg as string);
     });
 
@@ -190,5 +187,4 @@ describe('Generator-Based API (Async Iterables)', () => {
     // Callbacks should work (messages were not buffered)
     expect(socket).toBeDefined();
   });
-
 });

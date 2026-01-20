@@ -12,6 +12,7 @@ export default defineConfig({
         'dist/',
         '**/*.config.*',
         '**/types.ts', // Exclude type definition files from coverage
+        'tests/', // Exclude test files from coverage
       ],
       // Coverage thresholds for PR quality assurance
       thresholds: {

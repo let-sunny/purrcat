@@ -11,38 +11,36 @@ import { EventHandler } from './handlers/event-handler.js';
 import { MessageHandler } from './handlers/message-handler.js';
 import { ConnectionHandler } from './handlers/connection-handler.js';
 
-
 /**
  * Create a WebSocket client with auto-reconnect, buffering, and async iterables
- * 
+ *
  * Creates a new WebSocket client instance with the provided options. The socket
  * automatically connects on creation and provides both callback-based and
  * generator-based APIs for consuming messages and events.
- * 
+ *
  * @param options - Socket configuration options
  * @param options.url - WebSocket server URL (required)
  * @param options.protocols - Optional WebSocket subprotocol(s)
  * @param options.reconnect - Reconnection configuration (boolean or ReconnectConfig)
  * @param options.buffer - Buffer configuration for receive and send queues
  * @returns Socket instance with methods for sending/receiving messages and events
- * 
+ *
  * @example
  * ```typescript
  * const socket = createSocket({ url: 'wss://example.com' });
- * 
+ *
  * // Generator-based API
  * for await (const msg of socket.messages()) {
  *   console.log(msg);
  * }
- * 
+ *
  * // Callback-based API
  * socket.onMessage((msg) => console.log(msg));
  * ```
  */
-export function createSocket<
-  Incoming = string,
-  Outgoing = string | object | ArrayBuffer | Blob
->(options: SocketOptions): SocketInterface<Incoming, Outgoing> {
+export function createSocket<Incoming = string, Outgoing = string | object | ArrayBuffer | Blob>(
+  options: SocketOptions
+): SocketInterface<Incoming, Outgoing> {
   const opts = normalizeOptions(options);
   const state = createState<Incoming>();
 

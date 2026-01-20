@@ -5,7 +5,7 @@
   <br>
   <a href="https://www.npmjs.org/package/purrcat"><img src="https://img.shields.io/npm/v/purrcat.svg" alt="npm"></a>
   <img src="https://github.com/let-sunny/purrcat/workflows/CI/badge.svg" alt="build status">
-  <a href="https://unpkg.com/purrcat/dist/index.global.js"><img src="https://img.badgesize.io/https://unpkg.com/purrcat/dist/index.global.js?compression=gzip" alt="gzip size"></a>
+  <a href="https://bundlephobia.com/package/purrcat"><img src="https://img.shields.io/badge/gzip-2.4%20KB-blue?style=flat" alt="bundle size (gzipped)"></a>
 </p>
 
 > Lightweight WebSocket client with auto-reconnect, backoff strategies, bounded message buffering, and async iterables
@@ -14,7 +14,7 @@ A lightweight, event-driven WebSocket client library. Perfect for real-time appl
 
 ## Highlights
 
-**Microscopic**: weighs less than 6KB minified (~2KB gzipped)
+**Microscopic**: weighs 8.7KB minified (2.4KB gzipped)
 
 **Reliable**: automatic reconnection with exponential/linear backoff + jitter
 
@@ -44,7 +44,7 @@ Learn about purrcat's internal architecture, design decisions, and how to choose
 - **Bounded message buffer** with configurable overflow policies
 - **Generator-based streams** for async iteration
 - **TypeScript** support
-- **Browser & Node.js** compatible (Node.js 18+ required for native WebSocket)
+- **Browser & Node.js** compatible (Node.js 20+ required for native WebSocket)
 - **Zero dependencies** (uses native WebSocket API)
 - **Tiny bundle size**
 - **AbortSignal** support for stream cancellation
@@ -73,11 +73,13 @@ Learn about purrcat's internal architecture, design decisions, and how to choose
 ## Installation
 
 **npm:**
+
 ```bash
 npm install purrcat
 ```
 
 **UMD build (via unpkg):**
+
 ```html
 <script src="https://unpkg.com/purrcat/dist/index.global.js"></script>
 ```
@@ -85,10 +87,12 @@ npm install purrcat
 ### Requirements
 
 **Runtime (when using the library):**
+
 - **Browser**: Modern browsers with WebSocket support
-- **Node.js**: 18.0.0 or higher (uses native WebSocket API)
+- **Node.js**: 20.0.0 or higher (uses native WebSocket API)
 
 **Development:**
+
 - **Node.js**: 24.13.0 (tested with this version)
 
 ## Usage
@@ -105,12 +109,12 @@ When using the UMD build via `<script>` tag, the library is available as a globa
   });
 
   // Listen for messages
-  socket.onMessage((message) => {
+  socket.onMessage(message => {
     console.log('Received:', message);
   });
 
   // Listen for events
-  socket.onEvent((event) => {
+  socket.onEvent(event => {
     console.log('Event:', event.type);
   });
 
@@ -127,13 +131,11 @@ You can define your own message types for type safety:
 import createSocket from 'purrcat';
 
 // Define your message types
-type Incoming = 
+type Incoming =
   | { type: 'message'; from: string; text: string; id: string }
   | { type: 'user_joined'; userId: string; name: string };
 
-type Outgoing = 
-  | { type: 'send_message'; text: string }
-  | { type: 'join_room'; roomId: string };
+type Outgoing = { type: 'send_message'; text: string } | { type: 'join_room'; roomId: string };
 
 // Create socket with type parameters
 const socket = createSocket<Incoming, Outgoing>({
@@ -143,8 +145,8 @@ const socket = createSocket<Incoming, Outgoing>({
 // Type-safe message receiving
 for await (const msg of socket.messages()) {
   if (msg.type === 'message') {
-    console.log(msg.from);  // ✅ TypeScript knows this exists
-    console.log(msg.text);  // ✅ Type-safe
+    console.log(msg.from); // ✅ TypeScript knows this exists
+    console.log(msg.text); // ✅ Type-safe
   }
 }
 
@@ -211,12 +213,12 @@ const socket = createSocket({
 });
 
 // Subscribe to messages
-const unsubscribeMessage = socket.onMessage((data) => {
+const unsubscribeMessage = socket.onMessage(data => {
   console.log('Message:', data);
 });
 
 // Subscribe to events
-const unsubscribeEvent = socket.onEvent((event) => {
+const unsubscribeEvent = socket.onEvent(event => {
   console.log('Event:', event.type, event.meta);
 });
 
@@ -264,7 +266,7 @@ const socket = createSocket({
 });
 
 // Listen for dropped messages
-socket.onEvent((event) => {
+socket.onEvent(event => {
   if (event.type === 'dropped') {
     console.warn('Message dropped:', event.meta?.reason, event.meta?.bufferType);
   }
@@ -294,12 +296,12 @@ Creates a new WebSocket client instance.
 
 #### Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `url` | `string` | **required** | WebSocket server URL |
-| `protocols` | `string \| string[]` | - | WebSocket subprotocols |
-| `reconnect` | `boolean \| ReconnectConfig` | `true` | Reconnection configuration. `ReconnectConfig` is `{ enabled?: boolean, attempts?: number, interval?: number, backoff?: ReconnectBackoff, maxInterval?: number }` |
-| `buffer` | `{ receive?: BufferConfig, send?: BufferConfig }` | `{ receive: { size: 100, overflow: 'oldest' }, send: { size: 100, overflow: 'oldest' } }` | Message buffer configuration (receive buffer and send queue). `BufferConfig` is `{ size?: number, overflow?: BufferOverflowPolicy }` |
+| Option      | Type                                              | Default                                                                                   | Description                                                                                                                                                      |
+| ----------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `url`       | `string`                                          | **required**                                                                              | WebSocket server URL                                                                                                                                             |
+| `protocols` | `string \| string[]`                              | -                                                                                         | WebSocket subprotocols                                                                                                                                           |
+| `reconnect` | `boolean \| ReconnectConfig`                      | `true`                                                                                    | Reconnection configuration. `ReconnectConfig` is `{ enabled?: boolean, attempts?: number, interval?: number, backoff?: ReconnectBackoff, maxInterval?: number }` |
+| `buffer`    | `{ receive?: BufferConfig, send?: BufferConfig }` | `{ receive: { size: 100, overflow: 'oldest' }, send: { size: 100, overflow: 'oldest' } }` | Message buffer configuration (receive buffer and send queue). `BufferConfig` is `{ size?: number, overflow?: BufferOverflowPolicy }`                             |
 
 ### Socket Methods
 
@@ -328,7 +330,7 @@ for await (const event of socket.events({ signal: abortSignal })) {
 Registers a message callback. Returns an unsubscribe function.
 
 ```typescript
-const unsubscribe = socket.onMessage((data) => {
+const unsubscribe = socket.onMessage(data => {
   console.log(data);
 });
 // Later...
@@ -340,7 +342,7 @@ unsubscribe();
 Registers an event callback. Returns an unsubscribe function.
 
 ```typescript
-const unsubscribe = socket.onEvent((event) => {
+const unsubscribe = socket.onEvent(event => {
   console.log(event.type);
 });
 // Later...
@@ -362,11 +364,7 @@ socket.send(new ArrayBuffer(8));
 Sends multiple messages from an async iterable stream. Returns a Promise that resolves when all messages are sent.
 
 ```typescript
-const messages = [
-  { type: 'ping' },
-  { type: 'pong' },
-  { type: 'ping' },
-];
+const messages = [{ type: 'ping' }, { type: 'pong' }, { type: 'ping' }];
 
 // Using async generator
 async function* messageStream() {
@@ -444,7 +442,7 @@ const socket = createSocket({
 });
 
 // Handle events
-socket.onEvent((event) => {
+socket.onEvent(event => {
   switch (event.type) {
     case 'open':
       console.log('Connected');

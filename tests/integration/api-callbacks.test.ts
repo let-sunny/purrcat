@@ -1,8 +1,8 @@
 /**
  * api-callbacks.test.ts
- * 
+ *
  * Purpose: Integration tests for callback-based API (onMessage, onEvent) and event details
- * 
+ *
  * Test Coverage:
  * - onMessage() callback registration/unregistration and message reception
  * - onEvent() callback registration/unregistration and event reception
@@ -11,7 +11,7 @@
  * - Message format handling (JSON, non-JSON strings)
  * - Callback error handling (graceful degradation)
  * - Multiple callbacks registration and independent operation
- * 
+ *
  * Boundaries:
  * - Generator-based API is tested in api-generators.test.ts
  * - AbortSignal integration is tested in abort-signal.test.ts
@@ -21,11 +21,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import createSocket from '../../src/index.js';
-import {
-  setupWebSocketMock,
-  cleanupWebSocketMock,
-  createdWebSockets,
-} from '../helpers.js';
+import type { SocketEvent } from '../../src/types.js';
+import { setupWebSocketMock, cleanupWebSocketMock, createdWebSockets } from '../helpers.js';
 
 describe('Event-Based API (Callbacks)', () => {
   beforeEach(() => {
@@ -42,8 +39,8 @@ describe('Event-Based API (Callbacks)', () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
-    const receivedMessages: any[] = [];
-    socket.onMessage((msg) => {
+    const receivedMessages: string[] = [];
+    socket.onMessage(msg => {
       receivedMessages.push(msg);
     });
 
@@ -64,7 +61,7 @@ describe('Event-Based API (Callbacks)', () => {
     await vi.runAllTimersAsync();
 
     const messages: Incoming[] = [];
-    socket.onMessage((msg) => {
+    socket.onMessage(msg => {
       messages.push(msg);
     });
 
@@ -83,7 +80,7 @@ describe('Event-Based API (Callbacks)', () => {
     await vi.runAllTimersAsync();
 
     const messages: string[] = [];
-    socket.onMessage((msg) => {
+    socket.onMessage(msg => {
       messages.push(msg);
     });
 
@@ -100,11 +97,11 @@ describe('Event-Based API (Callbacks)', () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
-    const messages1: any[] = [];
-    const messages2: any[] = [];
+    const messages1: string[] = [];
+    const messages2: string[] = [];
 
-    socket.onMessage((msg) => messages1.push(msg));
-    socket.onMessage((msg) => messages2.push(msg));
+    socket.onMessage(msg => messages1.push(msg));
+    socket.onMessage(msg => messages2.push(msg));
 
     const ws = createdWebSockets[0];
     ws.simulateMessage('message1');
@@ -120,8 +117,8 @@ describe('Event-Based API (Callbacks)', () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
-    const messages: any[] = [];
-    const unsubscribe = socket.onMessage((msg) => {
+    const messages: string[] = [];
+    const unsubscribe = socket.onMessage(msg => {
       messages.push(msg);
     });
 
@@ -141,41 +138,43 @@ describe('Event-Based API (Callbacks)', () => {
   it('should emit open event', async () => {
     const socket = createSocket({ url: 'ws://test.com' });
 
-    const events: any[] = [];
-    socket.onEvent((event) => {
+    const events: SocketEvent[] = [];
+    socket.onEvent(event => {
       events.push(event);
     });
 
     await vi.runAllTimersAsync();
 
-    expect(events.some((e) => e.type === 'open')).toBe(true);
+    expect(events.some(e => e.type === 'open')).toBe(true);
   });
 
   it('should emit close event', async () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
-    const events: any[] = [];
-    socket.onEvent((event) => {
+    const events: SocketEvent[] = [];
+    socket.onEvent(event => {
       events.push(event);
     });
 
     socket.close(1000, 'Normal closure');
     await vi.runAllTimersAsync();
 
-    const closeEvent = events.find((e) => e.type === 'close');
+    const closeEvent = events.find(e => e.type === 'close');
     expect(closeEvent).toBeDefined();
-    expect(closeEvent.meta?.code).toBe(1000);
-    expect(closeEvent.meta?.reason).toBe('Normal closure');
-    expect(closeEvent.meta?.wasClean).toBe(true);
+    if (closeEvent && closeEvent.type === 'close') {
+      expect(closeEvent.meta?.code).toBe(1000);
+      expect(closeEvent.meta?.reason).toBe('Normal closure');
+      expect(closeEvent.meta?.wasClean).toBe(true);
+    }
   });
 
   it('should include code and reason in close event', async () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
-    const closeEvents: any[] = [];
-    socket.onEvent((event) => {
+    const closeEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'close') {
         closeEvents.push(event);
       }
@@ -186,16 +185,18 @@ describe('Event-Based API (Callbacks)', () => {
 
     expect(closeEvents.length).toBeGreaterThan(0);
     const closeEvent = closeEvents[closeEvents.length - 1];
-    expect(closeEvent.meta?.code).toBe(1001);
-    expect(closeEvent.meta?.reason).toBe('Going away');
+    if (closeEvent.type === 'close') {
+      expect(closeEvent.meta?.code).toBe(1001);
+      expect(closeEvent.meta?.reason).toBe('Going away');
+    }
   });
 
   it('should include wasClean flag in close event', async () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
-    const closeEvents: any[] = [];
-    socket.onEvent((event) => {
+    const closeEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'close') {
         closeEvents.push(event);
       }
@@ -213,8 +214,8 @@ describe('Event-Based API (Callbacks)', () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
-    const receivedEvents: any[] = [];
-    socket.onEvent((event) => {
+    const receivedEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'received') {
         receivedEvents.push(event);
       }
@@ -233,8 +234,8 @@ describe('Event-Based API (Callbacks)', () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
-    const sentEvents: any[] = [];
-    socket.onEvent((event) => {
+    const sentEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'sent') {
         sentEvents.push(event);
       }
@@ -251,8 +252,8 @@ describe('Event-Based API (Callbacks)', () => {
     const socket = createSocket({ url: 'ws://test.com' });
     await vi.runAllTimersAsync();
 
-    const errorEvents: any[] = [];
-    socket.onEvent((event) => {
+    const errorEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'error') {
         errorEvents.push(event);
       }
@@ -277,8 +278,8 @@ describe('Event-Based API (Callbacks)', () => {
       },
     });
 
-    const droppedEvents: any[] = [];
-    socket.onEvent((event) => {
+    const droppedEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'dropped') {
         droppedEvents.push(event);
       }
@@ -310,8 +311,8 @@ describe('Event-Based API (Callbacks)', () => {
   it('should allow unsubscribing from event callbacks', async () => {
     const socket = createSocket({ url: 'ws://test.com' });
 
-    const events: any[] = [];
-    const unsubscribe = socket.onEvent((event) => {
+    const events: SocketEvent[] = [];
+    const unsubscribe = socket.onEvent(event => {
       events.push(event);
     });
 
@@ -348,7 +349,7 @@ describe('Event-Based API (Callbacks)', () => {
 
   it('should handle error in event callback gracefully', async () => {
     const socket = createSocket({ url: 'ws://test.com' });
-    
+
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     socket.onEvent(() => {

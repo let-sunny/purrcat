@@ -33,7 +33,7 @@ export interface ReconnectConfig {
 export interface SocketEvent {
   type: SocketEventType;
   ts: number;
-  meta?: Record<string, any>;
+  meta?: Record<string, unknown>;
 }
 
 /** Options passed to createSocket() to configure the WebSocket client */

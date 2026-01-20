@@ -1,0 +1,89 @@
+{
+  "inputs": {
+    "src/constants.ts": { "bytes": 670, "imports": [], "format": "esm" },
+    "src/utils.ts": {
+      "bytes": 8956,
+      "imports": [
+        { "path": "src/constants.ts", "kind": "import-statement", "original": "./constants.js" }
+      ],
+      "format": "esm"
+    },
+    "src/generators.ts": {
+      "bytes": 2832,
+      "imports": [{ "path": "src/utils.ts", "kind": "import-statement", "original": "./utils.js" }],
+      "format": "esm"
+    },
+    "src/handlers/event-handler.ts": {
+      "bytes": 1364,
+      "imports": [
+        { "path": "src/constants.ts", "kind": "import-statement", "original": "../constants.js" }
+      ],
+      "format": "esm"
+    },
+    "src/handlers/message-handler.ts": {
+      "bytes": 6893,
+      "imports": [
+        { "path": "src/utils.ts", "kind": "import-statement", "original": "../utils.js" },
+        { "path": "./event-handler.js", "kind": "import-statement", "external": true }
+      ],
+      "format": "esm"
+    },
+    "src/handlers/connection-handler.ts": {
+      "bytes": 3514,
+      "imports": [
+        { "path": "src/utils.ts", "kind": "import-statement", "original": "../utils.js" },
+        { "path": "./event-handler.js", "kind": "import-statement", "external": true },
+        { "path": "./message-handler.js", "kind": "import-statement", "external": true }
+      ],
+      "format": "esm"
+    },
+    "src/socket.ts": {
+      "bytes": 3905,
+      "imports": [
+        { "path": "src/utils.ts", "kind": "import-statement", "original": "./utils.js" },
+        { "path": "src/generators.ts", "kind": "import-statement", "original": "./generators.js" },
+        {
+          "path": "src/handlers/event-handler.ts",
+          "kind": "import-statement",
+          "original": "./handlers/event-handler.js"
+        },
+        {
+          "path": "src/handlers/message-handler.ts",
+          "kind": "import-statement",
+          "original": "./handlers/message-handler.js"
+        },
+        {
+          "path": "src/handlers/connection-handler.ts",
+          "kind": "import-statement",
+          "original": "./handlers/connection-handler.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/index.ts": {
+      "bytes": 365,
+      "imports": [
+        { "path": "src/socket.ts", "kind": "import-statement", "original": "./socket.js" },
+        { "path": "src/socket.ts", "kind": "import-statement", "original": "./socket.js" }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "dist-analyze/index.global.js": {
+      "imports": [],
+      "exports": [],
+      "entryPoint": "src/index.ts",
+      "inputs": {
+        "src/index.ts": { "bytesInOutput": 57 },
+        "src/utils.ts": { "bytesInOutput": 1738 },
+        "src/generators.ts": { "bytesInOutput": 696 },
+        "src/handlers/event-handler.ts": { "bytesInOutput": 417 },
+        "src/handlers/message-handler.ts": { "bytesInOutput": 2860 },
+        "src/handlers/connection-handler.ts": { "bytesInOutput": 1905 },
+        "src/socket.ts": { "bytesInOutput": 797 }
+      },
+      "bytes": 8931
+    }
+  }
+}

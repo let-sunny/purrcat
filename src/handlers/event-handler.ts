@@ -9,7 +9,7 @@ export class EventHandler<Incoming> {
 
   emit(event: SocketEvent): void {
     // Call all registered callbacks first (they don't use queue)
-    this.state.eventCallbacks.forEach((cb) => {
+    this.state.eventCallbacks.forEach(cb => {
       try {
         cb(event);
       } catch (error) {
@@ -25,7 +25,7 @@ export class EventHandler<Incoming> {
       // Copy the set to avoid issues if new resolvers are added during iteration
       const resolvers = Array.from(this.state.eventResolvers);
       this.state.eventResolvers.clear();
-      resolvers.forEach((resolve) => resolve());
+      resolvers.forEach(resolve => resolve());
       return;
     }
 

@@ -1,8 +1,8 @@
 /**
  * reconnection.test.ts
- * 
+ *
  * Purpose: Integration tests for automatic reconnection logic and backoff strategies
- * 
+ *
  * Test Coverage:
  * - Automatic reconnection on unexpected connection closure
  * - No reconnection on manual close
@@ -10,7 +10,7 @@
  * - Backoff strategies (linear, exponential)
  * - Maximum reconnection interval limit
  * - reconnect event emission
- * 
+ *
  * Boundaries:
  * - Basic connection/close is tested in basic.test.ts
  * - Reconnection-related events are verified here, but the event itself is also tested in api-callbacks.test.ts
@@ -19,11 +19,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import createSocket from '../../src/index.js';
-import {
-  setupWebSocketMock,
-  cleanupWebSocketMock,
-  createdWebSockets,
-} from '../helpers.js';
+import type { SocketEvent } from '../../src/types.js';
+import { setupWebSocketMock, cleanupWebSocketMock, createdWebSockets } from '../helpers.js';
 
 describe('Reconnection', () => {
   beforeEach(() => {
@@ -37,7 +34,7 @@ describe('Reconnection', () => {
   });
 
   it('should attempt reconnection when connection closes unexpectedly', async () => {
-    const socket = createSocket({
+    const _socket = createSocket({
       url: 'ws://test.com',
       reconnect: {
         enabled: true,
@@ -79,7 +76,7 @@ describe('Reconnection', () => {
   });
 
   it('should respect max reconnection attempts', async () => {
-    const socket = createSocket({
+    const _socket = createSocket({
       url: 'ws://test.com',
       reconnect: {
         enabled: true,
@@ -113,8 +110,8 @@ describe('Reconnection', () => {
       },
     });
 
-    const reconnectEvents: any[] = [];
-    socket.onEvent((event) => {
+    const reconnectEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'reconnect') {
         reconnectEvents.push(event);
       }
@@ -127,10 +124,12 @@ describe('Reconnection', () => {
     await vi.runAllTimersAsync();
 
     // Should emit reconnect event with interval
-    const scheduledEvent = reconnectEvents.find((e) => e.meta?.interval);
+    const scheduledEvent = reconnectEvents.find(e => e.type === 'reconnect' && e.meta?.interval);
     expect(scheduledEvent).toBeDefined();
-    expect(scheduledEvent.meta.attempt).toBeDefined();
-    expect(scheduledEvent.meta.interval).toBeDefined();
+    if (scheduledEvent && scheduledEvent.type === 'reconnect') {
+      expect(scheduledEvent.meta?.attempt).toBeDefined();
+      expect(scheduledEvent.meta?.interval).toBeDefined();
+    }
   });
 
   it('should emit reconnect event without interval when attempting', async () => {
@@ -143,8 +142,8 @@ describe('Reconnection', () => {
       },
     });
 
-    const reconnectEvents: any[] = [];
-    socket.onEvent((event) => {
+    const reconnectEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'reconnect') {
         reconnectEvents.push(event);
       }
@@ -158,9 +157,11 @@ describe('Reconnection', () => {
     await vi.advanceTimersByTimeAsync(200);
 
     // Should emit reconnect event without interval (attempting)
-    const attemptEvent = reconnectEvents.find((e) => !e.meta?.interval);
+    const attemptEvent = reconnectEvents.find(e => e.type === 'reconnect' && !e.meta?.interval);
     expect(attemptEvent).toBeDefined();
-    expect(attemptEvent.meta.attempt).toBeDefined();
+    if (attemptEvent && attemptEvent.type === 'reconnect') {
+      expect(attemptEvent.meta?.attempt).toBeDefined();
+    }
   });
 
   it('should use exponential backoff', async () => {
@@ -179,8 +180,8 @@ describe('Reconnection', () => {
     const ws = createdWebSockets[0];
     ws.close(1006, 'Abnormal closure');
 
-    const reconnectEvents: any[] = [];
-    socket.onEvent((event) => {
+    const reconnectEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'reconnect' && event.meta?.interval) {
         reconnectEvents.push(event);
       }
@@ -190,9 +191,16 @@ describe('Reconnection', () => {
 
     // Check that intervals increase (exponentially)
     if (reconnectEvents.length >= 2) {
-      const firstInterval = reconnectEvents[0].meta.interval;
-      const secondInterval = reconnectEvents[1].meta.interval;
-      expect(secondInterval).toBeGreaterThan(firstInterval);
+      const firstEvent = reconnectEvents[0];
+      const secondEvent = reconnectEvents[1];
+      if (
+        firstEvent.type === 'reconnect' &&
+        secondEvent.type === 'reconnect' &&
+        typeof firstEvent.meta?.interval === 'number' &&
+        typeof secondEvent.meta?.interval === 'number'
+      ) {
+        expect(secondEvent.meta.interval).toBeGreaterThan(firstEvent.meta.interval);
+      }
     }
   });
 
@@ -212,8 +220,8 @@ describe('Reconnection', () => {
     const ws = createdWebSockets[0];
     ws.close(1006, 'Abnormal closure');
 
-    const reconnectEvents: any[] = [];
-    socket.onEvent((event) => {
+    const reconnectEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'reconnect' && event.meta?.interval) {
         reconnectEvents.push(event);
       }
@@ -241,8 +249,8 @@ describe('Reconnection', () => {
     const ws = createdWebSockets[0];
     ws.close(1006, 'Abnormal closure');
 
-    const reconnectEvents: any[] = [];
-    socket.onEvent((event) => {
+    const reconnectEvents: SocketEvent[] = [];
+    socket.onEvent(event => {
       if (event.type === 'reconnect' && event.meta?.interval) {
         reconnectEvents.push(event);
       }
@@ -251,13 +259,15 @@ describe('Reconnection', () => {
     await vi.runAllTimersAsync();
 
     // All intervals should be <= maxInterval
-    reconnectEvents.forEach((event) => {
-      expect(event.meta.interval).toBeLessThanOrEqual(500);
+    reconnectEvents.forEach(event => {
+      if (event.type === 'reconnect' && typeof event.meta?.interval === 'number') {
+        expect(event.meta.interval).toBeLessThanOrEqual(500);
+      }
     });
   });
 
   it('should reset reconnect count on successful connection', async () => {
-    const socket = createSocket({
+    const _socket = createSocket({
       url: 'ws://test.com',
       reconnect: {
         enabled: true,

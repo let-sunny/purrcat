@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 
 // Mock CloseEvent for Node.js test environment
 if (typeof globalThis.CloseEvent === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - provide minimal CloseEvent implementation for tests
   globalThis.CloseEvent = class extends Event {
     code: number;
@@ -83,22 +84,40 @@ export let createdWebSockets: MockWebSocket[] = [];
 
 // Create a spy function that wraps MockWebSocket
 export function createWebSocketSpy() {
-  return vi.fn((url: string, protocols?: string | string[]) => {
+  const WebSocketConstructor = function (
+    this: MockWebSocket,
+    url: string,
+    protocols?: string | string[]
+  ) {
     const ws = new MockWebSocket(url, protocols);
     createdWebSockets.push(ws);
     return ws;
+  } as unknown as typeof WebSocket;
+
+  // Create object with static properties
+  const ConstructorWithStatics = Object.assign(WebSocketConstructor, {
+    CONNECTING: MockWebSocket.CONNECTING,
+    OPEN: MockWebSocket.OPEN,
+    CLOSING: MockWebSocket.CLOSING,
+    CLOSED: MockWebSocket.CLOSED,
   });
+
+  const spy = vi.fn(ConstructorWithStatics);
+  return spy;
 }
 
 // Setup function for tests
 export function setupWebSocketMock() {
   createdWebSockets = [];
   const spy = createWebSocketSpy();
-  global.WebSocket = spy as any;
+  global.WebSocket = spy as typeof WebSocket;
+  globalThis.WebSocket = spy as typeof WebSocket;
   return spy;
 }
 
 // Cleanup function for tests
 export function cleanupWebSocketMock() {
   createdWebSockets = [];
+  // Don't delete WebSocket as it might be needed by other tests
+  // Tests should restore it manually if needed
 }
