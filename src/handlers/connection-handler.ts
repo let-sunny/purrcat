@@ -1,7 +1,4 @@
-import type {
-  InternalSocketState,
-  NormalizedSocketOptions,
-} from '../types.js';
+import type { InternalSocketState, NormalizedSocketOptions } from '../types.js';
 import { createEvent, calculateReconnectInterval } from '../utils.js';
 import { EventHandler } from './event-handler.js';
 import { MessageHandler } from './message-handler.js';
@@ -67,17 +64,16 @@ export class ConnectionHandler<Incoming, Outgoing> {
         this.messageHandler.flushQueue();
       };
 
-      this.state.ws.onmessage = (event) => {
-        const data =
-          typeof event.data === 'string' ? event.data : String(event.data);
+      this.state.ws.onmessage = event => {
+        const data = typeof event.data === 'string' ? event.data : String(event.data);
         this.messageHandler.receive(data);
       };
 
-      this.state.ws.onerror = (error) => {
+      this.state.ws.onerror = error => {
         this.eventHandler.emit(createEvent('error', { error }));
       };
 
-      this.state.ws.onclose = (event) => {
+      this.state.ws.onclose = event => {
         this.eventHandler.emit(
           createEvent('close', {
             code: event.code,
@@ -95,10 +91,7 @@ export class ConnectionHandler<Incoming, Outgoing> {
       };
     } catch (error) {
       this.eventHandler.emit(createEvent('error', { error }));
-      if (
-        this.opts.reconnect.enabled &&
-        this.state.reconnectCount < this.opts.reconnect.attempts
-      ) {
+      if (this.opts.reconnect.enabled && this.state.reconnectCount < this.opts.reconnect.attempts) {
         this.scheduleReconnect();
       }
     }

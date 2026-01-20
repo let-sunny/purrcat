@@ -1,14 +1,14 @@
 /**
  * buffer-overflow.test.ts
- * 
+ *
  * Purpose: Integration tests for buffer overflow policies (oldest, newest, error)
- * 
+ *
  * Test Coverage:
  * - Receive buffer overflow policy
  * - Send queue overflow policy
  * - Behavior verification for each policy (oldest, newest, error)
  * - Flushing queued messages on connection
- * 
+ *
  * Boundaries:
  * - Buffer size configuration is only tested here
  * - dropped event emission is verified here, but the event itself is also tested in api-callbacks.test.ts
@@ -17,11 +17,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import createSocket from '../../src/index.js';
-import {
-  setupWebSocketMock,
-  cleanupWebSocketMock,
-  createdWebSockets,
-} from '../helpers.js';
+import type { SocketEvent } from '../../src/types.js';
+import { setupWebSocketMock, cleanupWebSocketMock, createdWebSockets } from '../helpers.js';
 
 describe('Buffer Overflow Policies', () => {
   beforeEach(() => {
@@ -46,8 +43,8 @@ describe('Buffer Overflow Policies', () => {
         },
       });
 
-      const droppedEvents: any[] = [];
-      socket.onEvent((event) => {
+      const droppedEvents: SocketEvent[] = [];
+      socket.onEvent(event => {
         if (event.type === 'dropped') {
           droppedEvents.push(event);
         }
@@ -88,7 +85,7 @@ describe('Buffer Overflow Policies', () => {
 
       // Should have dropped a message
       const receiveDrops = droppedEvents.filter(
-        (e) => e.meta?.bufferType === 'receive' && e.meta?.policy === 'oldest'
+        e => e.meta?.bufferType === 'receive' && e.meta?.policy === 'oldest'
       );
       expect(receiveDrops.length).toBeGreaterThanOrEqual(0);
     });
@@ -104,8 +101,8 @@ describe('Buffer Overflow Policies', () => {
         },
       });
 
-      const droppedEvents: any[] = [];
-      socket.onEvent((event) => {
+      const droppedEvents: SocketEvent[] = [];
+      socket.onEvent(event => {
         if (event.type === 'dropped') {
           droppedEvents.push(event);
         }
@@ -141,7 +138,7 @@ describe('Buffer Overflow Policies', () => {
       await vi.runAllTimersAsync();
 
       const receiveDrops = droppedEvents.filter(
-        (e) => e.meta?.bufferType === 'receive' && e.meta?.policy === 'newest'
+        e => e.meta?.bufferType === 'receive' && e.meta?.policy === 'newest'
       );
       expect(receiveDrops.length).toBeGreaterThanOrEqual(0);
     });
@@ -212,8 +209,8 @@ describe('Buffer Overflow Policies', () => {
         },
       });
 
-      const droppedEvents: any[] = [];
-      socket.onEvent((event) => {
+      const droppedEvents: SocketEvent[] = [];
+      socket.onEvent(event => {
         if (event.type === 'dropped') {
           droppedEvents.push(event);
         }
@@ -227,7 +224,7 @@ describe('Buffer Overflow Policies', () => {
       await vi.runAllTimersAsync();
 
       const sendDrops = droppedEvents.filter(
-        (e) => e.meta?.bufferType === 'send' && e.meta?.policy === 'oldest'
+        e => e.meta?.bufferType === 'send' && e.meta?.policy === 'oldest'
       );
       expect(sendDrops.length).toBeGreaterThanOrEqual(0);
     });
@@ -243,8 +240,8 @@ describe('Buffer Overflow Policies', () => {
         },
       });
 
-      const droppedEvents: any[] = [];
-      socket.onEvent((event) => {
+      const droppedEvents: SocketEvent[] = [];
+      socket.onEvent(event => {
         if (event.type === 'dropped') {
           droppedEvents.push(event);
         }
@@ -257,7 +254,7 @@ describe('Buffer Overflow Policies', () => {
       await vi.runAllTimersAsync();
 
       const sendDrops = droppedEvents.filter(
-        (e) => e.meta?.bufferType === 'send' && e.meta?.policy === 'newest'
+        e => e.meta?.bufferType === 'send' && e.meta?.policy === 'newest'
       );
       expect(sendDrops.length).toBeGreaterThanOrEqual(0);
     });
@@ -281,6 +278,5 @@ describe('Buffer Overflow Policies', () => {
         socket.send('msg3');
       }).toThrow('Send queue overflow');
     });
-
   });
 });

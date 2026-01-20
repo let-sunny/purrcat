@@ -1,15 +1,15 @@
 /**
  * event-handler.test.ts
- * 
+ *
  * Purpose: Unit tests for EventHandler class
- * 
+ *
  * Test Coverage:
  * - Event emission to callbacks
  * - Event queueing for iterators
  * - Event queue size limit (MAX_RECENT_EVENTS)
  * - Callback error handling
  * - Resolver notification for waiting iterators
- * 
+ *
  * Boundaries:
  * - Integration tests for event-based API are in integration/api-callbacks.test.ts
  * - Integration tests for generator-based API are in integration/api-generators.test.ts
@@ -36,7 +36,7 @@ describe('EventHandler', () => {
     state.eventCallbacks.add(callback1);
     state.eventCallbacks.add(callback2);
 
-    const event: SocketEvent = { type: 'open' };
+    const event: SocketEvent = { type: 'open', ts: Date.now() };
     handler.emit(event);
 
     expect(callback1).toHaveBeenCalledWith(event);
@@ -52,7 +52,7 @@ describe('EventHandler', () => {
     state.eventCallbacks.add(callback1);
     state.eventCallbacks.add(callback2);
 
-    const event: SocketEvent = { type: 'open' };
+    const event: SocketEvent = { type: 'open', ts: Date.now() };
     handler.emit(event);
 
     expect(callback1).toHaveBeenCalled();
@@ -67,7 +67,7 @@ describe('EventHandler', () => {
     const resolver = vi.fn();
     state.eventResolvers.add(resolver);
 
-    const event: SocketEvent = { type: 'open' };
+    const event: SocketEvent = { type: 'open', ts: Date.now() };
     handler.emit(event);
 
     expect(state.eventQueue).toContain(event);
@@ -82,7 +82,7 @@ describe('EventHandler', () => {
     state.eventResolvers.add(resolver1);
     state.eventResolvers.add(resolver2);
 
-    const event: SocketEvent = { type: 'open' };
+    const event: SocketEvent = { type: 'open', ts: Date.now() };
     handler.emit(event);
 
     expect(resolver1).toHaveBeenCalled();
@@ -94,7 +94,7 @@ describe('EventHandler', () => {
 
     // Emit more events than MAX_RECENT_EVENTS
     for (let i = 0; i < MAX_RECENT_EVENTS + 5; i++) {
-      handler.emit({ type: 'open' });
+      handler.emit({ type: 'open', ts: Date.now() });
     }
 
     // Should only keep MAX_RECENT_EVENTS
@@ -106,7 +106,7 @@ describe('EventHandler', () => {
 
     // Emit more events than MAX_RECENT_EVENTS
     for (let i = 0; i < MAX_RECENT_EVENTS + 5; i++) {
-      handler.emit({ type: 'open' });
+      handler.emit({ type: 'open', ts: Date.now() });
     }
 
     // Should keep all events
@@ -117,12 +117,12 @@ describe('EventHandler', () => {
     state.activeEventIterators = 0;
 
     // Emit events
-    handler.emit({ type: 'open' });
-    handler.emit({ type: 'close', meta: { code: 1000 } });
-    
+    handler.emit({ type: 'open', ts: Date.now() });
+    handler.emit({ type: 'close', ts: Date.now(), meta: { code: 1000 } });
+
     // Fill queue to limit
     for (let i = 0; i < MAX_RECENT_EVENTS - 1; i++) {
-      handler.emit({ type: 'open' });
+      handler.emit({ type: 'open', ts: Date.now() });
     }
 
     // First event should be removed

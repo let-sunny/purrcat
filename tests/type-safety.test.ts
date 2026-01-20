@@ -1,14 +1,14 @@
 /**
  * type-safety.test.ts
- * 
+ *
  * Purpose: TypeScript type safety and generic type verification
- * 
+ *
  * Test Coverage:
  * - Default type (string) behavior
  * - Custom Incoming type specification and type safety
  * - Custom Outgoing type specification and type safety
  * - Type inference and type checking
- * 
+ *
  * Boundaries:
  * - Runtime behavior is verified in other test files
  * - Only type-level safety is verified here
@@ -39,7 +39,7 @@ describe('Type Safety', () => {
 
     // Messages should be string type
     const messages: string[] = [];
-    socket.onMessage((msg) => {
+    socket.onMessage(msg => {
       // msg should be inferred as string
       messages.push(msg);
     });
@@ -54,7 +54,7 @@ describe('Type Safety', () => {
     await vi.runAllTimersAsync();
 
     const messages: Incoming[] = [];
-    socket.onMessage((msg) => {
+    socket.onMessage(msg => {
       // msg should be Incoming type
       messages.push(msg);
 
@@ -97,7 +97,7 @@ describe('Type Safety', () => {
 
     // Should receive Incoming type
     const messages: Incoming[] = [];
-    socket.onMessage((msg) => {
+    socket.onMessage(msg => {
       messages.push(msg);
 
       // Type narrowing

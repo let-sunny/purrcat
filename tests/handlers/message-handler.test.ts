@@ -1,8 +1,8 @@
 /**
  * message-handler.test.ts
- * 
+ *
  * Purpose: Unit tests for MessageHandler class
- * 
+ *
  * Test Coverage:
  * - Message receiving and parsing
  * - Message sending (immediate and queued)
@@ -10,7 +10,7 @@
  * - Buffer overflow handling
  * - Queue flushing
  * - receiveMessages and sendMessages async iterables
- * 
+ *
  * Boundaries:
  * - Integration tests for message API are in integration/api-callbacks.test.ts and integration/api-generators.test.ts
  * - Buffer overflow policy tests are in integration/buffer-overflow.test.ts
@@ -21,12 +21,7 @@ import { MessageHandler } from '../../src/handlers/message-handler.js';
 import { EventHandler } from '../../src/handlers/event-handler.js';
 import { createState, normalizeOptions } from '../../src/utils.js';
 import type { NormalizedSocketOptions } from '../../src/types.js';
-import {
-  setupWebSocketMock,
-  cleanupWebSocketMock,
-  createdWebSockets,
-  MockWebSocket,
-} from '../helpers.js';
+import { setupWebSocketMock, cleanupWebSocketMock, MockWebSocket } from '../helpers.js';
 
 describe('MessageHandler', () => {
   let handler: MessageHandler<string, string>;
@@ -123,7 +118,7 @@ describe('MessageHandler', () => {
     });
 
     it('should queue messages when connection is closing', () => {
-      const ws = { readyState: MockWebSocket.CLOSING } as any;
+      const ws = { readyState: MockWebSocket.CLOSING } as unknown as WebSocket;
       state.ws = ws;
 
       handler.send('msg1');
@@ -143,7 +138,7 @@ describe('MessageHandler', () => {
     });
 
     it('should not flush when connection is closing', () => {
-      const ws = { readyState: MockWebSocket.CLOSING } as any;
+      const ws = { readyState: MockWebSocket.CLOSING } as unknown as WebSocket;
       state.ws = ws;
       state.messageQueue.push('msg1');
 
@@ -197,7 +192,7 @@ describe('MessageHandler', () => {
       await vi.runAllTimersAsync();
       const ws = new MockWebSocket('ws://test.com');
       ws.readyState = MockWebSocket.OPEN;
-      state.ws = ws as any;
+      state.ws = ws as unknown as WebSocket;
 
       async function* messageGenerator() {
         yield 'msg1';
@@ -206,9 +201,7 @@ describe('MessageHandler', () => {
       }
 
       // Should complete without error
-      await expect(
-        handler.sendMessages(messageGenerator())
-      ).resolves.toBeUndefined();
+      await expect(handler.sendMessages(messageGenerator())).resolves.toBeUndefined();
       await vi.runAllTimersAsync();
     });
 
@@ -216,7 +209,7 @@ describe('MessageHandler', () => {
       await vi.runAllTimersAsync();
       const ws = new MockWebSocket('ws://test.com');
       ws.readyState = MockWebSocket.OPEN;
-      state.ws = ws as any;
+      state.ws = ws as unknown as WebSocket;
 
       const controller = new AbortController();
 

@@ -1,8 +1,8 @@
 /**
  * connection-handler.test.ts
- * 
+ *
  * Purpose: Unit tests for ConnectionHandler class
- * 
+ *
  * Test Coverage:
  * - WebSocket connection creation
  * - Connection lifecycle (open, close, error)
@@ -11,7 +11,7 @@
  * - Manual close vs automatic close
  * - AbortController cleanup
  * - Event emission for connection events
- * 
+ *
  * Boundaries:
  * - Integration tests for reconnection logic are in integration/reconnection.test.ts
  * - Integration tests for connection API are in integration/basic.test.ts
@@ -43,17 +43,8 @@ describe('ConnectionHandler', () => {
     state = createState<string>();
     eventHandler = new EventHandler<string>(state);
     opts = normalizeOptions({ url: 'ws://test.com' });
-    messageHandler = new MessageHandler<string, string>(
-      state,
-      opts,
-      eventHandler
-    );
-    handler = new ConnectionHandler<string, string>(
-      state,
-      opts,
-      eventHandler,
-      messageHandler
-    );
+    messageHandler = new MessageHandler<string, string>(state, opts, eventHandler);
+    handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
   });
 
   afterEach(() => {
@@ -75,12 +66,7 @@ describe('ConnectionHandler', () => {
         url: 'ws://test.com',
         protocols: ['chat', 'json'],
       });
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       handler.connect();
       await vi.runAllTimersAsync();
@@ -179,16 +165,11 @@ describe('ConnectionHandler', () => {
       const originalWebSocket = global.WebSocket;
       global.WebSocket = vi.fn(() => {
         throw new Error('WebSocket construction failed');
-      }) as any;
+      }) as unknown as typeof WebSocket;
 
       // Disable reconnect to prevent infinite loop
       opts.reconnect.enabled = false;
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       const eventCallback = vi.fn();
       state.eventCallbacks.add(eventCallback);
@@ -274,12 +255,7 @@ describe('ConnectionHandler', () => {
       opts.reconnect.enabled = true;
       opts.reconnect.attempts = 3;
       opts.reconnect.interval = 100;
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       handler.connect();
       await vi.runAllTimersAsync();
@@ -294,12 +270,7 @@ describe('ConnectionHandler', () => {
 
     it('should not reconnect when manually closed', async () => {
       opts.reconnect.enabled = true;
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       handler.connect();
       await vi.runAllTimersAsync();
@@ -315,12 +286,7 @@ describe('ConnectionHandler', () => {
       opts.reconnect.enabled = true;
       opts.reconnect.attempts = 2;
       opts.reconnect.interval = 100;
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       handler.connect();
       await vi.runAllTimersAsync();
@@ -341,12 +307,7 @@ describe('ConnectionHandler', () => {
     it('should emit reconnect event', async () => {
       opts.reconnect.enabled = true;
       opts.reconnect.interval = 100;
-      handler = new ConnectionHandler<string, string>(
-        state,
-        opts,
-        eventHandler,
-        messageHandler
-      );
+      handler = new ConnectionHandler<string, string>(state, opts, eventHandler, messageHandler);
 
       const eventCallback = vi.fn();
       state.eventCallbacks.add(eventCallback);

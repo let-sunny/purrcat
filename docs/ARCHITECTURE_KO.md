@@ -81,28 +81,35 @@ src/
 ### 모듈별 역할
 
 #### `socket.ts`
+
 - `createSocket()`: 팩토리 함수로 소켓 인스턴스 생성
 - `Socket`: 위 핸들러들을 조합하여 Socket 인터페이스 구현
 
 #### `handlers/event-handler.ts`
+
 - `EventHandler`: 이벤트 발생 및 큐 관리
 
 #### `handlers/message-handler.ts`
+
 - `MessageHandler`: 메시지 수신/송신 및 버퍼링
 
 #### `handlers/connection-handler.ts`
+
 - `ConnectionHandler`: WebSocket 연결/재연결 관리
 
 #### `generators.ts`
+
 - `messagesGenerator()`: 메시지 스트림 제너레이터
 - `eventsGenerator()`: 이벤트 스트림 제너레이터
 
 #### `types.ts`
+
 - 모든 TypeScript 타입 정의
 - 공개 API 인터페이스
 - 내부 상태 타입
 
 #### `utils.ts`
+
 - `createEvent()`: 이벤트 객체 생성
 - `calculateReconnectInterval()`: 재연결 간격 계산
 - `normalizeOptions()`: 옵션 정규화
@@ -113,6 +120,7 @@ src/
 - `createDroppedEvent()`: 드롭된 이벤트 생성
 
 #### `constants.ts`
+
 - 하드코딩된 숫자 값들을 상수로 정의
 - `DEFAULT_RECONNECT_INTERVAL`, `MAX_RECENT_EVENTS` 등
 
@@ -138,7 +146,7 @@ Socket<Incoming, Outgoing>
 ```typescript
 class EventHandler<Incoming> {
   constructor(private state: InternalSocketState<Incoming>) {}
-  
+
   emit(event: SocketEvent): void {
     // 콜백 호출
     // 이벤트 큐 관리
@@ -148,6 +156,7 @@ class EventHandler<Incoming> {
 ```
 
 **주요 책임:**
+
 - 이벤트 콜백 호출
 - 이벤트 큐 관리 (메모리 누수 방지)
 - 이터레이터 알림 (resolver 깨우기)
@@ -163,29 +172,31 @@ class MessageHandler<Incoming, Outgoing> {
     private opts: NormalizedSocketOptions,
     private eventHandler: EventHandler<Incoming>
   ) {}
-  
+
   // Public 메서드
-  receive(data: string): void
-  receiveMessages(messages: AsyncIterable<string>, options?): Promise<void>
-  send(data: Outgoing): void
-  sendMessages(messages: AsyncIterable<Outgoing>, options?): Promise<void>
-  flushQueue(): void
-  
+  receive(data: string): void;
+  receiveMessages(messages: AsyncIterable<string>, options?): Promise<void>;
+  send(data: Outgoing): void;
+  sendMessages(messages: AsyncIterable<Outgoing>, options?): Promise<void>;
+  flushQueue(): void;
+
   // Private 메서드
-  private handleCallbacks(parsed: Incoming): void
-  private bufferReceivedMessage(data: string): void
-  private handleSendImmediately(message, data): void
-  private queueSendMessage(messageStr: string): void
+  private handleCallbacks(parsed: Incoming): void;
+  private bufferReceivedMessage(data: string): void;
+  private handleSendImmediately(message, data): void;
+  private queueSendMessage(messageStr: string): void;
 }
 ```
 
 **주요 책임:**
+
 - 메시지 수신 처리 (파싱, 콜백, 버퍼링)
 - 메시지 송신 처리 (직렬화, 즉시 전송 또는 큐잉)
 - 버퍼 오버플로우 처리
 - 큐 플러시
 
 **메서드 분리:**
+
 - `receive`: `handleCallbacks` + `bufferReceivedMessage`로 분리
 - `send`: `handleSendImmediately` + `queueSendMessage`로 분리
 - 일관된 네이밍 패턴: `handle*` (처리 로직), `buffer*/queue*` (버퍼/큐 관련)
@@ -202,14 +213,15 @@ class ConnectionHandler<Incoming, Outgoing> {
     private eventHandler: EventHandler<Incoming>,
     private messageHandler: MessageHandler<Incoming, Outgoing>
   ) {}
-  
-  scheduleReconnect(): void
-  connect(): void
-  close(code?: number, reason?: string): void
+
+  scheduleReconnect(): void;
+  connect(): void;
+  close(code?: number, reason?: string): void;
 }
 ```
 
 **주요 책임:**
+
 - WebSocket 연결 생성 및 관리
 - 재연결 스케줄링
 - 연결 종료 처리
@@ -224,35 +236,39 @@ class Socket<Incoming, Outgoing> implements SocketInterface<Incoming, Outgoing> 
   private eventHandler: EventHandler<Incoming>;
   private messageHandler: MessageHandler<Incoming, Outgoing>;
   private connectionHandler: ConnectionHandler<Incoming, Outgoing>;
-  
+
   // Public API
-  messages(options?): AsyncIterable<Incoming>
-  events(options?): AsyncIterable<SocketEvent>
-  onMessage(callback): () => void
-  onEvent(callback): () => void
-  connect(): void
-  close(code?, reason?): void
-  send(data: Outgoing): void
-  sendMessages(messages, options?): Promise<void>
+  messages(options?): AsyncIterable<Incoming>;
+  events(options?): AsyncIterable<SocketEvent>;
+  onMessage(callback): () => void;
+  onEvent(callback): () => void;
+  connect(): void;
+  close(code?, reason?): void;
+  send(data: Outgoing): void;
+  sendMessages(messages, options?): Promise<void>;
 }
 ```
 
 **주요 책임:**
+
 - 핸들러 인스턴스 생성 및 조합
 - Socket 인터페이스 구현
 - Public API 제공
 
 **파일 구조:**
+
 - `socket.ts`: Socket 클래스와 createSocket 팩토리 함수
 - 각 핸들러는 `handlers/` 디렉토리의 별도 파일로 분리
 
 ### 코드 구조 개선
 
 **Public 메서드 우선 배치:**
+
 - 클래스 상단에 Public 메서드를 배치하여 인터페이스를 빠르게 파악 가능
 - `receive`, `send`, `receiveMessages`, `sendMessages`, `flushQueue` 등
 
 **Private 메서드 하단 배치:**
+
 - 구현 세부사항은 클래스 하단에 배치
 - `handleCallbacks`, `bufferReceivedMessage`, `handleSendImmediately`, `queueSendMessage` 등
 
@@ -266,20 +282,20 @@ class Socket<Incoming, Outgoing> implements SocketInterface<Incoming, Outgoing> 
 
 ```typescript
 interface InternalSocketState<Incoming> {
-  ws: WebSocket | null;                    // WebSocket 인스턴스
-  isManualClose: boolean;                   // 수동 종료 여부
-  reconnectCount: number;                   // 재연결 시도 횟수
-  reconnectTimer: ReturnType<typeof setTimeout> | null;  // 재연결 타이머
-  messageBuffer: string[];                  // 수신 메시지 버퍼
-  eventQueue: SocketEvent[];                // 이벤트 큐
-  messageQueue: string[];                   // 송신 메시지 큐
-  messageCallbacks: Set<(data: Incoming) => void>;  // 메시지 콜백
-  eventCallbacks: Set<(event: SocketEvent) => void>;  // 이벤트 콜백
-  abortController: AbortController | null;  // 중단 컨트롤러
-  activeMessageIterators: number;          // 활성 메시지 이터레이터 수
-  activeEventIterators: number;             // 활성 이벤트 이터레이터 수
-  messageResolvers: Set<() => void>;        // 메시지 대기 해결자
-  eventResolvers: Set<() => void>;          // 이벤트 대기 해결자
+  ws: WebSocket | null; // WebSocket 인스턴스
+  isManualClose: boolean; // 수동 종료 여부
+  reconnectCount: number; // 재연결 시도 횟수
+  reconnectTimer: ReturnType<typeof setTimeout> | null; // 재연결 타이머
+  messageBuffer: string[]; // 수신 메시지 버퍼
+  eventQueue: SocketEvent[]; // 이벤트 큐
+  messageQueue: string[]; // 송신 메시지 큐
+  messageCallbacks: Set<(data: Incoming) => void>; // 메시지 콜백
+  eventCallbacks: Set<(event: SocketEvent) => void>; // 이벤트 콜백
+  abortController: AbortController | null; // 중단 컨트롤러
+  activeMessageIterators: number; // 활성 메시지 이터레이터 수
+  activeEventIterators: number; // 활성 이벤트 이터레이터 수
+  messageResolvers: Set<() => void>; // 메시지 대기 해결자
+  eventResolvers: Set<() => void>; // 이벤트 대기 해결자
 }
 ```
 
@@ -294,7 +310,7 @@ class MessageHandler<Incoming, Outgoing> {
     private opts: NormalizedSocketOptions,
     private eventHandler: EventHandler<Incoming>
   ) {}
-  
+
   receive(data: string): void {
     // state와 opts에 직접 접근
     const parsed = parseMessage<Incoming>(data);
@@ -315,11 +331,11 @@ purrcat은 두 가지 API 스타일을 모두 지원합니다. 각각의 장단�
 ```typescript
 const socket = createSocket({ url: 'wss://example.com' });
 
-socket.onMessage((message) => {
+socket.onMessage(message => {
   console.log('Received:', message);
 });
 
-socket.onEvent((event) => {
+socket.onEvent(event => {
   console.log('Event:', event.type);
 });
 ```
@@ -404,7 +420,7 @@ for await (const event of socket.events({ signal: abortController.signal })) {
 const socket = createSocket({ url: 'wss://example.com' });
 
 // 콜백: 모든 메시지 로깅
-socket.onMessage((msg) => console.log('Log:', msg));
+socket.onMessage(msg => console.log('Log:', msg));
 
 // 제너레이터: 특정 메시지만 처리
 for await (const msg of socket.messages()) {
@@ -422,16 +438,16 @@ for await (const msg of socket.messages()) {
 
 ### 선택 가이드
 
-| 상황 | 추천 API |
-|------|----------|
-| 실시간 알림, 간단한 로깅 | 콜백 |
-| 순차 처리, 조건부 로직 | 제너레이터 |
-| 에러 복구, 재시도 로직 | 제너레이터 |
-| **다중 구독자 패턴** | **콜백** |
-| **여러 페이지/컴포넌트에서 같은 메시지 수신** | **콜백** |
-| 스트림 변환/필터링 | 제너레이터 |
-| 사용자 중단 가능한 작업 | 제너레이터 (AbortSignal) |
-| 메모리 제약이 큰 환경 | 콜백 (제너레이터 비활성화) |
+| 상황                                          | 추천 API                   |
+| --------------------------------------------- | -------------------------- |
+| 실시간 알림, 간단한 로깅                      | 콜백                       |
+| 순차 처리, 조건부 로직                        | 제너레이터                 |
+| 에러 복구, 재시도 로직                        | 제너레이터                 |
+| **다중 구독자 패턴**                          | **콜백**                   |
+| **여러 페이지/컴포넌트에서 같은 메시지 수신** | **콜백**                   |
+| 스트림 변환/필터링                            | 제너레이터                 |
+| 사용자 중단 가능한 작업                       | 제너레이터 (AbortSignal)   |
+| 메모리 제약이 큰 환경                         | 콜백 (제너레이터 비활성화) |
 
 ### 여러 페이지에서 같은 이벤트 수신하기
 
@@ -459,19 +475,19 @@ for await (const msg of socket.messages()) {
 
 ```typescript
 // 페이지 A
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   console.log('Page A:', msg);
   // 메시지를 소비하지 않음 - 다른 핸들러도 받을 수 있음
 });
 
 // 페이지 B
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   console.log('Page B:', msg);
   // 같은 메시지를 받을 수 있음
 });
 
 // 페이지 C
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   console.log('Page C:', msg);
   // 모든 핸들러가 같은 메시지를 받음
 });
@@ -486,19 +502,19 @@ socket.onMessage((msg) => {
 const socket = createSocket({ url: 'wss://example.com' });
 
 // 컴포넌트 A: 알림 표시
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   if (msg.type === 'notification') {
     showNotification(msg);
   }
 });
 
 // 컴포넌트 B: 로깅
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   logger.log('Message received:', msg);
 });
 
 // 컴포넌트 C: 상태 업데이트
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   updateState(msg);
 });
 
@@ -513,13 +529,13 @@ socket.onMessage((msg) => {
 
 ```typescript
 type SocketEventType =
-  | 'open'        // 연결 열림
-  | 'close'       // 연결 닫힘
-  | 'error'       // 에러 발생
-  | 'reconnect'    // 재연결 시도
-  | 'received'    // 메시지 수신
-  | 'sent'        // 메시지 전송
-  | 'dropped';    // 메시지 드롭
+  | 'open' // 연결 열림
+  | 'close' // 연결 닫힘
+  | 'error' // 에러 발생
+  | 'reconnect' // 재연결 시도
+  | 'received' // 메시지 수신
+  | 'sent' // 메시지 전송
+  | 'dropped'; // 메시지 드롭
 ```
 
 ### 이벤트 발생 흐름
@@ -549,14 +565,14 @@ EventHandler.emit()
 ```typescript
 async function* messagesGenerator(state, signal) {
   state.activeMessageIterators++;
-  
+
   try {
     while (true) {
       // 버퍼된 메시지 yield
       while (state.messageBuffer.length > 0) {
         yield parseMessage(state.messageBuffer.shift());
       }
-      
+
       // 새 메시지 대기
       await waitForItems(...);
     }
@@ -653,10 +669,10 @@ ConnectionHandler.connect()
 
 ### 버퍼 생명주기
 
-- **메시지 버퍼**: 
+- **메시지 버퍼**:
   - 이터레이터가 활성화된 경우에만 버퍼링
   - 마지막 메시지 이터레이터 종료 시 클리어
-- **이벤트 큐**: 
+- **이벤트 큐**:
   - 이터레이터가 활성화된 경우: 모든 이벤트 큐에 추가
   - 이터레이터가 없는 경우: 최근 10개만 유지 (메모리 누수 방지)
   - 마지막 이벤트 이터레이터 종료 시 클리어
@@ -733,16 +749,19 @@ EventHandler.emit(event)
 ### 메서드 분리 전략
 
 **receive 메서드 분리:**
+
 - `handleCallbacks`: 콜백 호출 로직
 - `bufferReceivedMessage`: 버퍼링 로직
 - `receive`: 위 두 메서드를 조합
 
 **send 메서드 분리:**
+
 - `handleSendImmediately`: 즉시 전송 로직
 - `queueSendMessage`: 큐잉 로직
 - `send`: 위 두 메서드를 조합
 
 **일관된 네이밍 패턴:**
+
 - `handle*`: 처리 로직 (handleCallbacks, handleSendImmediately)
 - `buffer*/queue*`: 버퍼/큐 관련 (bufferReceivedMessage, queueSendMessage)
 
@@ -776,7 +795,7 @@ EventHandler.emit(event)
 ### 메모리 관리
 
 - **메시지 버퍼**: 이터레이터가 활성화된 경우에만 버퍼링 (메모리 누수 방지)
-- **이벤트 큐**: 
+- **이벤트 큐**:
   - 이터레이터가 활성화된 경우: 모든 이벤트 큐에 추가
   - 이터레이터가 없는 경우: 최근 10개만 유지 (무한 증가 방지)
   - 이터레이터 종료 시: 큐 자동 클리어

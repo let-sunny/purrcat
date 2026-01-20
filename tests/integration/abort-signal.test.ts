@@ -1,15 +1,15 @@
 /**
  * abort-signal.test.ts
- * 
+ *
  * Purpose: Integration tests for async operation cancellation using AbortSignal
- * 
+ *
  * Test Coverage:
  * - AbortSignal handling in messages() generator (at start, during consumption, while waiting)
  * - AbortSignal handling in events() generator (at start, during consumption, during polling)
  * - AbortSignal handling in sendMessages() and error handling
  * - Independent AbortSignal handling for multiple generators
  * - Edge cases (undefined signal, cannot reuse, etc.)
- * 
+ *
  * Boundaries:
  * - Basic generator behavior is tested in api-generators.test.ts
  * - General cases without AbortSignal are tested in other files
@@ -18,11 +18,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import createSocket from '../../src/index.js';
-import {
-  setupWebSocketMock,
-  cleanupWebSocketMock,
-  createdWebSockets,
-} from '../helpers.js';
+import type { SocketEvent } from '../../src/types.js';
+import { setupWebSocketMock, cleanupWebSocketMock, createdWebSockets } from '../helpers.js';
 
 describe('AbortSignal Integration', () => {
   beforeEach(() => {
@@ -49,9 +46,9 @@ describe('AbortSignal Integration', () => {
           for await (const msg of socket.messages({ signal: controller.signal })) {
             messages.push(msg as string);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           // AbortError is expected when signal is aborted
-          if (error?.name !== 'AbortError') {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -82,9 +79,9 @@ describe('AbortSignal Integration', () => {
               // This should trigger the break in the while loop
             }
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           // AbortError is expected when signal is aborted
-          if (error?.name !== 'AbortError') {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -120,9 +117,9 @@ describe('AbortSignal Integration', () => {
           for await (const msg of socket.messages({ signal: controller.signal })) {
             messages.push(msg as string);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           // AbortError is expected when signal is aborted
-          if (error?.name !== 'AbortError') {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -150,12 +147,12 @@ describe('AbortSignal Integration', () => {
 
       const messagePromise = (async () => {
         try {
-          for await (const msg of socket.messages({ signal: controller.signal })) {
+          for await (const _ of socket.messages({ signal: controller.signal })) {
             // Consume
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           // AbortError is expected when signal is aborted
-          if (error?.name !== 'AbortError') {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         } finally {
@@ -183,8 +180,8 @@ describe('AbortSignal Integration', () => {
           for await (const _ of socket.messages({ signal: controller.signal })) {
             // Just consume
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -208,8 +205,8 @@ describe('AbortSignal Integration', () => {
             controller2.abort();
             break;
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -237,14 +234,14 @@ describe('AbortSignal Integration', () => {
       const controller = new AbortController();
       controller.abort(); // Abort before starting (covers line 71)
 
-      const events: any[] = [];
+      const events: SocketEvent[] = [];
       const eventPromise = (async () => {
         try {
           for await (const event of socket.events({ signal: controller.signal })) {
             events.push(event);
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -266,7 +263,7 @@ describe('AbortSignal Integration', () => {
       await vi.runAllTimersAsync();
 
       const controller = new AbortController();
-      const events: any[] = [];
+      const events: SocketEvent[] = [];
 
       const eventPromise = (async () => {
         try {
@@ -278,8 +275,8 @@ describe('AbortSignal Integration', () => {
               break;
             }
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -305,7 +302,7 @@ describe('AbortSignal Integration', () => {
       await vi.runAllTimersAsync();
 
       const controller = new AbortController();
-      const events: any[] = [];
+      const events: SocketEvent[] = [];
 
       const eventPromise = (async () => {
         try {
@@ -314,8 +311,8 @@ describe('AbortSignal Integration', () => {
             // Exit after receiving first event to avoid infinite loop
             break;
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -341,7 +338,7 @@ describe('AbortSignal Integration', () => {
       await vi.runAllTimersAsync();
 
       const controller = new AbortController();
-      const events: any[] = [];
+      const events: SocketEvent[] = [];
 
       const eventPromise = (async () => {
         for await (const event of socket.events({ signal: controller.signal })) {
@@ -369,7 +366,7 @@ describe('AbortSignal Integration', () => {
       const socket = createSocket({ url: 'ws://test.com' });
       await vi.runAllTimersAsync();
 
-      const events: any[] = [];
+      const events: SocketEvent[] = [];
       const controller = new AbortController();
 
       const eventPromise = (async () => {
@@ -382,8 +379,8 @@ describe('AbortSignal Integration', () => {
               break; // Exit the for-await loop
             }
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -396,7 +393,7 @@ describe('AbortSignal Integration', () => {
       // Trigger new event while in polling (covers line 92-95: polling detects new event)
       socket.close();
       await vi.runAllTimersAsync();
-      
+
       // Advance timers to let polling interval detect the new event
       vi.advanceTimersByTime(20);
 
@@ -473,9 +470,7 @@ describe('AbortSignal Integration', () => {
       }
 
       // Should throw error if not aborted (covers line 356)
-      await expect(socket.sendMessages(errorGenerator())).rejects.toThrow(
-        'Test error'
-      );
+      await expect(socket.sendMessages(errorGenerator())).rejects.toThrow('Test error');
     });
   });
 
@@ -500,8 +495,8 @@ describe('AbortSignal Integration', () => {
               break;
             }
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -517,8 +512,8 @@ describe('AbortSignal Integration', () => {
               break;
             }
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -542,7 +537,7 @@ describe('AbortSignal Integration', () => {
     it('should handle independent AbortSignals for multiple event generators', async () => {
       const socket = createSocket({ url: 'ws://test.com' });
       await vi.runAllTimersAsync();
-      
+
       const controller1 = new AbortController();
       const controller2 = new AbortController();
 
@@ -550,16 +545,16 @@ describe('AbortSignal Integration', () => {
       controller1.abort();
       controller2.abort();
 
-      const events1: any[] = [];
-      const events2: any[] = [];
+      const events1: SocketEvent[] = [];
+      const events2: SocketEvent[] = [];
 
       const promise1 = (async () => {
         try {
           for await (const event of socket.events({ signal: controller1.signal })) {
             events1.push(event);
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -570,8 +565,8 @@ describe('AbortSignal Integration', () => {
           for await (const event of socket.events({ signal: controller2.signal })) {
             events2.push(event);
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -625,8 +620,8 @@ describe('AbortSignal Integration', () => {
           for await (const msg of socket.messages({ signal: controller.signal })) {
             messages.push(msg as string);
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -650,18 +645,18 @@ describe('AbortSignal Integration', () => {
 
       // Spy on setTimeout to count calls (used for polling fallback)
       const originalSetTimeout = global.setTimeout;
-      global.setTimeout = vi.fn((callback: any, delay?: number, ...args: any[]) => {
+      global.setTimeout = vi.fn((callback: () => void, delay?: number, ...args: unknown[]) => {
         timeoutCount++;
         return originalSetTimeout(callback, delay, ...args);
-      }) as any;
+      }) as unknown as typeof setTimeout;
 
       const messagePromise = (async () => {
         try {
           for await (const _ of socket.messages({ signal: controller.signal })) {
             // Consume
           }
-        } catch (error: any) {
-          if (error?.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== 'AbortError') {
             throw error;
           }
         }
@@ -689,10 +684,10 @@ describe('AbortSignal Integration', () => {
 
       // Spy on setTimeout to count calls
       const originalSetTimeout = global.setTimeout;
-      global.setTimeout = vi.fn((callback: any, delay?: number, ...args: any[]) => {
+      global.setTimeout = vi.fn((callback: () => void, delay?: number, ...args: unknown[]) => {
         timeoutCount++;
         return originalSetTimeout(callback, delay, ...args);
-      }) as any;
+      }) as unknown as typeof setTimeout;
 
       const messagePromise = (async () => {
         for await (const msg of socket.messages()) {
@@ -704,7 +699,7 @@ describe('AbortSignal Integration', () => {
 
       // Advance timers to trigger polling (if no message arrives)
       vi.advanceTimersByTime(150);
-      
+
       // Send a message which should wake up the generator via resolver
       ws.simulateMessage('test');
       await vi.runAllTimersAsync();
@@ -718,7 +713,7 @@ describe('AbortSignal Integration', () => {
       // But if message arrives after polling starts, timeoutCount may be > 0
       // The important thing is that it works correctly
       expect(timeoutCount).toBeGreaterThanOrEqual(0);
-      
+
       socket.close();
     });
   });

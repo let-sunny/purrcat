@@ -1,7 +1,4 @@
-import type {
-  InternalSocketState,
-  NormalizedSocketOptions,
-} from '../types.js';
+import type { InternalSocketState, NormalizedSocketOptions } from '../types.js';
 import {
   parseMessage,
   serializeMessage,
@@ -69,8 +66,7 @@ export class MessageHandler<Incoming, Outgoing> {
     }
 
     // Buffer for later
-    const messageStr =
-      typeof message === 'string' ? message : String(message);
+    const messageStr = typeof message === 'string' ? message : String(message);
     this.queueSendMessage(messageStr);
   }
 
@@ -117,7 +113,7 @@ export class MessageHandler<Incoming, Outgoing> {
 
   private handleCallbacks(parsed: Incoming): void {
     // Call all registered callbacks first (they don't use buffer)
-    this.state.messageCallbacks.forEach((cb) => {
+    this.state.messageCallbacks.forEach(cb => {
       try {
         cb(parsed);
       } catch (error) {
@@ -181,7 +177,7 @@ export class MessageHandler<Incoming, Outgoing> {
       // Notify waiting iterators immediately
       const resolvers = Array.from(this.state.messageResolvers);
       this.state.messageResolvers.clear();
-      resolvers.forEach((resolve) => resolve());
+      resolvers.forEach(resolve => resolve());
       return;
     }
 
@@ -192,7 +188,7 @@ export class MessageHandler<Incoming, Outgoing> {
       // Copy the set to avoid issues if new resolvers are added during iteration
       const resolvers = Array.from(this.state.messageResolvers);
       this.state.messageResolvers.clear();
-      resolvers.forEach((resolve) => resolve());
+      resolvers.forEach(resolve => resolve());
     }
   }
 

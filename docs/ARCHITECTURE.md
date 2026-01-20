@@ -81,28 +81,35 @@ src/
 ### Module Responsibilities
 
 #### `socket.ts`
+
 - `createSocket()`: Factory function to create socket instance
 - `Socket`: Combines handlers to implement Socket interface
 
 #### `handlers/event-handler.ts`
+
 - `EventHandler`: Event emission and queue management
 
 #### `handlers/message-handler.ts`
+
 - `MessageHandler`: Message receiving/sending and buffering
 
 #### `handlers/connection-handler.ts`
+
 - `ConnectionHandler`: WebSocket connection/reconnection management
 
 #### `generators.ts`
+
 - `messagesGenerator()`: Message stream generator
 - `eventsGenerator()`: Event stream generator
 
 #### `types.ts`
+
 - All TypeScript type definitions
 - Public API interfaces
 - Internal state types
 
 #### `utils.ts`
+
 - `createEvent()`: Event object creation
 - `calculateReconnectInterval()`: Reconnection interval calculation
 - `normalizeOptions()`: Options normalization
@@ -113,6 +120,7 @@ src/
 - `createDroppedEvent()`: Dropped event creation
 
 #### `constants.ts`
+
 - Hardcoded numeric values defined as constants
 - `DEFAULT_RECONNECT_INTERVAL`, `MAX_RECENT_EVENTS`, etc.
 
@@ -138,7 +146,7 @@ Handles event emission and queue management.
 ```typescript
 class EventHandler<Incoming> {
   constructor(private state: InternalSocketState<Incoming>) {}
-  
+
   emit(event: SocketEvent): void {
     // Call callbacks
     // Manage event queue
@@ -148,6 +156,7 @@ class EventHandler<Incoming> {
 ```
 
 **Key Responsibilities:**
+
 - Event callback invocation
 - Event queue management (prevent memory leaks)
 - Iterator notification (wake up resolvers)
@@ -163,29 +172,31 @@ class MessageHandler<Incoming, Outgoing> {
     private opts: NormalizedSocketOptions,
     private eventHandler: EventHandler<Incoming>
   ) {}
-  
+
   // Public methods
-  receive(data: string): void
-  receiveMessages(messages: AsyncIterable<string>, options?): Promise<void>
-  send(data: Outgoing): void
-  sendMessages(messages: AsyncIterable<Outgoing>, options?): Promise<void>
-  flushQueue(): void
-  
+  receive(data: string): void;
+  receiveMessages(messages: AsyncIterable<string>, options?): Promise<void>;
+  send(data: Outgoing): void;
+  sendMessages(messages: AsyncIterable<Outgoing>, options?): Promise<void>;
+  flushQueue(): void;
+
   // Private methods
-  private handleCallbacks(parsed: Incoming): void
-  private bufferReceivedMessage(data: string): void
-  private handleSendImmediately(message, data): void
-  private queueSendMessage(messageStr: string): void
+  private handleCallbacks(parsed: Incoming): void;
+  private bufferReceivedMessage(data: string): void;
+  private handleSendImmediately(message, data): void;
+  private queueSendMessage(messageStr: string): void;
 }
 ```
 
 **Key Responsibilities:**
+
 - Message receiving (parsing, callbacks, buffering)
 - Message sending (serialization, immediate send or queue)
 - Buffer overflow handling
 - Queue flushing
 
 **Method Separation:**
+
 - `receive`: Split into `handleCallbacks` + `bufferReceivedMessage`
 - `send`: Split into `handleSendImmediately` + `queueSendMessage`
 - Consistent naming pattern: `handle*` (processing logic), `buffer*/queue*` (buffer/queue related)
@@ -202,14 +213,15 @@ class ConnectionHandler<Incoming, Outgoing> {
     private eventHandler: EventHandler<Incoming>,
     private messageHandler: MessageHandler<Incoming, Outgoing>
   ) {}
-  
-  scheduleReconnect(): void
-  connect(): void
-  close(code?: number, reason?: string): void
+
+  scheduleReconnect(): void;
+  connect(): void;
+  close(code?: number, reason?: string): void;
 }
 ```
 
 **Key Responsibilities:**
+
 - WebSocket connection creation and management
 - Reconnection scheduling
 - Connection termination handling
@@ -224,35 +236,39 @@ class Socket<Incoming, Outgoing> implements SocketInterface<Incoming, Outgoing> 
   private eventHandler: EventHandler<Incoming>;
   private messageHandler: MessageHandler<Incoming, Outgoing>;
   private connectionHandler: ConnectionHandler<Incoming, Outgoing>;
-  
+
   // Public API
-  messages(options?): AsyncIterable<Incoming>
-  events(options?): AsyncIterable<SocketEvent>
-  onMessage(callback): () => void
-  onEvent(callback): () => void
-  connect(): void
-  close(code?, reason?): void
-  send(data: Outgoing): void
-  sendMessages(messages, options?): Promise<void>
+  messages(options?): AsyncIterable<Incoming>;
+  events(options?): AsyncIterable<SocketEvent>;
+  onMessage(callback): () => void;
+  onEvent(callback): () => void;
+  connect(): void;
+  close(code?, reason?): void;
+  send(data: Outgoing): void;
+  sendMessages(messages, options?): Promise<void>;
 }
 ```
 
 **Key Responsibilities:**
+
 - Handler instance creation and composition
 - Socket interface implementation
 - Public API provision
 
 **File Structure:**
+
 - `socket.ts`: Socket class and createSocket factory function
 - Each handler is in a separate file in the `handlers/` directory
 
 ### Code Structure Improvements
 
 **Public Methods First:**
+
 - Public methods at the top of the class for quick interface understanding
 - `receive`, `send`, `receiveMessages`, `sendMessages`, `flushQueue`, etc.
 
 **Private Methods Last:**
+
 - Implementation details at the bottom of the class
 - `handleCallbacks`, `bufferReceivedMessage`, `handleSendImmediately`, `queueSendMessage`, etc.
 
@@ -266,20 +282,20 @@ Manages all internal state of the socket.
 
 ```typescript
 interface InternalSocketState<Incoming> {
-  ws: WebSocket | null;                    // WebSocket instance
-  isManualClose: boolean;                   // Manual close flag
-  reconnectCount: number;                   // Reconnection attempt count
-  reconnectTimer: ReturnType<typeof setTimeout> | null;  // Reconnection timer
-  messageBuffer: string[];                  // Received message buffer
-  eventQueue: SocketEvent[];                // Event queue
-  messageQueue: string[];                   // Send message queue
-  messageCallbacks: Set<(data: Incoming) => void>;  // Message callbacks
-  eventCallbacks: Set<(event: SocketEvent) => void>;  // Event callbacks
-  abortController: AbortController | null;  // Abort controller
-  activeMessageIterators: number;          // Active message iterator count
-  activeEventIterators: number;             // Active event iterator count
-  messageResolvers: Set<() => void>;        // Message waiting resolvers
-  eventResolvers: Set<() => void>;          // Event waiting resolvers
+  ws: WebSocket | null; // WebSocket instance
+  isManualClose: boolean; // Manual close flag
+  reconnectCount: number; // Reconnection attempt count
+  reconnectTimer: ReturnType<typeof setTimeout> | null; // Reconnection timer
+  messageBuffer: string[]; // Received message buffer
+  eventQueue: SocketEvent[]; // Event queue
+  messageQueue: string[]; // Send message queue
+  messageCallbacks: Set<(data: Incoming) => void>; // Message callbacks
+  eventCallbacks: Set<(event: SocketEvent) => void>; // Event callbacks
+  abortController: AbortController | null; // Abort controller
+  activeMessageIterators: number; // Active message iterator count
+  activeEventIterators: number; // Active event iterator count
+  messageResolvers: Set<() => void>; // Message waiting resolvers
+  eventResolvers: Set<() => void>; // Event waiting resolvers
 }
 ```
 
@@ -294,7 +310,7 @@ class MessageHandler<Incoming, Outgoing> {
     private opts: NormalizedSocketOptions,
     private eventHandler: EventHandler<Incoming>
   ) {}
-  
+
   receive(data: string): void {
     // Direct access to state and opts
     const parsed = parseMessage<Incoming>(data);
@@ -315,11 +331,11 @@ purrcat supports both API styles. Understanding the advantages and disadvantages
 ```typescript
 const socket = createSocket({ url: 'wss://example.com' });
 
-socket.onMessage((message) => {
+socket.onMessage(message => {
   console.log('Received:', message);
 });
 
-socket.onEvent((event) => {
+socket.onEvent(event => {
   console.log('Event:', event.type);
 });
 ```
@@ -404,7 +420,7 @@ Both APIs can be used simultaneously:
 const socket = createSocket({ url: 'wss://example.com' });
 
 // Callback: Log all messages
-socket.onMessage((msg) => console.log('Log:', msg));
+socket.onMessage(msg => console.log('Log:', msg));
 
 // Generator: Process only specific messages
 for await (const msg of socket.messages()) {
@@ -422,16 +438,16 @@ for await (const msg of socket.messages()) {
 
 ### Selection Guide
 
-| Situation | Recommended API |
-|-----------|----------------|
-| Real-time notifications, simple logging | Callback |
-| Sequential processing, conditional logic | Generator |
-| Error recovery, retry logic | Generator |
-| **Multiple subscriber pattern** | **Callback** |
-| **Multiple pages/components receiving same message** | **Callback** |
-| Stream transformation/filtering | Generator |
-| User-cancellable tasks | Generator (AbortSignal) |
-| Memory-constrained environments | Callback (generators disabled) |
+| Situation                                            | Recommended API                |
+| ---------------------------------------------------- | ------------------------------ |
+| Real-time notifications, simple logging              | Callback                       |
+| Sequential processing, conditional logic             | Generator                      |
+| Error recovery, retry logic                          | Generator                      |
+| **Multiple subscriber pattern**                      | **Callback**                   |
+| **Multiple pages/components receiving same message** | **Callback**                   |
+| Stream transformation/filtering                      | Generator                      |
+| User-cancellable tasks                               | Generator (AbortSignal)        |
+| Memory-constrained environments                      | Callback (generators disabled) |
 
 ### Receiving Same Events Across Multiple Pages
 
@@ -459,19 +475,19 @@ Generators **consume** messages, so when one iterator receives a message, it's r
 
 ```typescript
 // Page A
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   console.log('Page A:', msg);
   // Message is not consumed - other handlers can also receive it
 });
 
 // Page B
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   console.log('Page B:', msg);
   // Can receive the same message
 });
 
 // Page C
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   console.log('Page C:', msg);
   // All handlers receive the same message
 });
@@ -486,19 +502,19 @@ Callbacks **do not consume** messages and **broadcast** to all registered handle
 const socket = createSocket({ url: 'wss://example.com' });
 
 // Component A: Show notifications
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   if (msg.type === 'notification') {
     showNotification(msg);
   }
 });
 
 // Component B: Logging
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   logger.log('Message received:', msg);
 });
 
 // Component C: State update
-socket.onMessage((msg) => {
+socket.onMessage(msg => {
   updateState(msg);
 });
 
@@ -513,13 +529,13 @@ socket.onMessage((msg) => {
 
 ```typescript
 type SocketEventType =
-  | 'open'        // Connection opened
-  | 'close'       // Connection closed
-  | 'error'       // Error occurred
-  | 'reconnect'    // Reconnection attempt
-  | 'received'    // Message received
-  | 'sent'        // Message sent
-  | 'dropped';    // Message dropped
+  | 'open' // Connection opened
+  | 'close' // Connection closed
+  | 'error' // Error occurred
+  | 'reconnect' // Reconnection attempt
+  | 'received' // Message received
+  | 'sent' // Message sent
+  | 'dropped'; // Message dropped
 ```
 
 ### Event Emission Flow
@@ -549,14 +565,14 @@ EventHandler.emit()
 ```typescript
 async function* messagesGenerator(state, signal) {
   state.activeMessageIterators++;
-  
+
   try {
     while (true) {
       // Yield buffered messages
       while (state.messageBuffer.length > 0) {
         yield parseMessage(state.messageBuffer.shift());
       }
-      
+
       // Wait for new messages
       await waitForItems(...);
     }
@@ -653,10 +669,10 @@ Message queuing when connection is closed:
 
 ### Buffer Lifecycle
 
-- **Message Buffer**: 
+- **Message Buffer**:
   - Buffering only when iterators are active
   - Cleared when last message iterator ends
-- **Event Queue**: 
+- **Event Queue**:
   - When iterators are active: All events added to queue
   - When no iterators: Only most recent 10 kept (prevents memory leaks)
   - Cleared when last event iterator ends
@@ -733,16 +749,19 @@ EventHandler.emit(event)
 ### Method Separation Strategy
 
 **receive Method Separation:**
+
 - `handleCallbacks`: Callback invocation logic
 - `bufferReceivedMessage`: Buffering logic
 - `receive`: Combines the above two methods
 
 **send Method Separation:**
+
 - `handleSendImmediately`: Immediate send logic
 - `queueSendMessage`: Queuing logic
 - `send`: Combines the above two methods
 
 **Consistent Naming Pattern:**
+
 - `handle*`: Processing logic (handleCallbacks, handleSendImmediately)
 - `buffer*/queue*`: Buffer/queue related (bufferReceivedMessage, queueSendMessage)
 
@@ -776,7 +795,7 @@ EventHandler.emit(event)
 ### Memory Management
 
 - **Message Buffer**: Buffering only when iterators are active (prevents memory leaks)
-- **Event Queue**: 
+- **Event Queue**:
   - When iterators are active: All events added to queue
   - When no iterators: Only most recent 10 kept (prevents infinite growth)
   - When iterators end: Queue automatically cleared
