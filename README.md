@@ -5,7 +5,7 @@
   <br>
   <a href="https://www.npmjs.org/package/purrcat"><img src="https://img.shields.io/npm/v/purrcat.svg" alt="npm"></a>
   <img src="https://github.com/let-sunny/purrcat/workflows/CI/badge.svg" alt="build status">
-  <a href="https://unpkg.com/purrcat/dist/index.global.js"><img src="https://img.badgesize.io/https://unpkg.com/purrcat/dist/index.global.js?compression=gzip" alt="gzip size"></a>
+  <a href="https://bundlephobia.com/package/purrcat"><img src="https://img.shields.io/badge/gzip-2.4%20KB-blue?style=flat" alt="bundle size (gzipped)"></a>
 </p>
 
 > Lightweight WebSocket client with auto-reconnect, backoff strategies, bounded message buffering, and async iterables
@@ -14,7 +14,7 @@ A lightweight, event-driven WebSocket client library. Perfect for real-time appl
 
 ## Highlights
 
-**Microscopic**: weighs less than 6KB minified (~2KB gzipped)
+**Microscopic**: weighs 8.7KB minified (2.4KB gzipped)
 
 **Reliable**: automatic reconnection with exponential/linear backoff + jitter
 
